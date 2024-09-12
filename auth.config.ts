@@ -1,5 +1,7 @@
 import type { NextAuthConfig } from 'next-auth'
 
+//console.log('AUTH_SECRET from env:', process.env.AUTH_SECRET);
+
 export const authConfig = {
   secret: process.env.AUTH_SECRET,
   pages: {

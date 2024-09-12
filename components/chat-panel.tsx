@@ -36,24 +36,24 @@ export function ChatPanel({
 
   const exampleMessages = [
     {
-      heading: 'What are the',
-      subheading: 'trending memecoins today?',
-      message: `What are the trending memecoins today?`
+      heading: 'Ce este Codul Muncii?',
+      subheading: 'Informații generale despre Codul Muncii',
+      message: `Ce este Codul Muncii?`
     },
     {
-      heading: 'What is the price of',
-      subheading: '$DOGE right now?',
-      message: 'What is the price of $DOGE right now?'
+      heading: 'Care sunt drepturile angajaților?',
+      subheading: 'Drepturile și obligațiile angajaților conform Codului Muncii',
+      message: 'Care sunt drepturile angajaților conform Codului Muncii?'
     },
     {
-      heading: 'I would like to buy',
-      subheading: '42 $DOGE',
-      message: `I would like to buy 42 $DOGE`
+      heading: 'Care sunt obligațiile angajatorilor?',
+      subheading: 'Obligațiile legale ale angajatorilor',
+      message: `Care sunt obligațiile angajatorilor conform Codului Muncii?`
     },
     {
-      heading: 'What are some',
-      subheading: `recent events about $DOGE?`,
-      message: `What are some recent events about $DOGE?`
+      heading: 'Ce se întâmplă în cazul concedierii?',
+      subheading: `Procedura legală în cazul concedierii`,
+      message: `Care este procedura de concediere conform Codului Muncii?`
     }
   ]
 

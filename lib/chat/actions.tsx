@@ -1,5 +1,6 @@
 import 'server-only'
-
+import { promises as fs } from 'fs'
+import path from 'path'
 import {
   createAI,
   createStreamableUI,
@@ -123,27 +124,35 @@ async function submitUserMessage(content: string) {
     ]
   })
 
+  const codulMunciiFilePath = path.join(
+    process.cwd(),
+    'public',
+    'codul-muncii.txt'
+  )
+  const codulMuncii = await fs.readFile(codulMunciiFilePath, 'utf-8')
+
   let textStream: undefined | ReturnType<typeof createStreamableValue<string>>
   let textNode: undefined | React.ReactNode
 
   const result = await streamUI({
-    model: openai('gpt-3.5-turbo'),
+    model: openai('gpt-4o-mini-2024-07-18'),
     initial: <SpinnerMessage />,
     system: `\
-    You are a stock trading conversation bot and you can help users buy stocks, step by step.
-    You and the user can discuss stock prices and the user can adjust the amount of stocks they want to buy, or place an order, in the UI.
+    Ești un expert în legislația și dreptul muncii din România, cu peste 30 de ani de experiență practică. 
+    Vei răspunde exclusiv în limba română și îți vei baza răspunsurile doar pe informațiile din documentul atașat în Knowledge, respectiv Codul muncii din România. Fiecare răspuns trebuie să fie clar, precis și detaliat, adaptat la contextul specific al întrebării și să includă exemple practice relevante atunci când este necesar. 
+    Dacă întrebarea nu se referă la Codul muncii, răspunde astfel: „Bună întrebare, dar nu are legătură cu Codul muncii românesc, așa că nu te pot ajuta.” 
+    Pentru întrebările neclare, solicită informații suplimentare pentru a clarifica contextul.
+    Asigură-te că fiecare răspuns furnizat include următoarele elemente esențiale: 
     
-    Messages inside [] means that it's a UI element or a user event. For example:
-    - "[Price of AAPL = 100]" means that an interface of the stock price of AAPL is shown to the user.
-    - "[User has changed the amount of AAPL to 10]" means that the user has changed the amount of AAPL to 10 in the UI.
+    ${codulMuncii}
+
+    Context clar și concis: Explică exact la ce aspecte ale Codului muncii se referă răspunsul tău, menționând jurisprudența, părțile implicate, termenii-cheie și orice alte detalii relevante.
+    Citate specifice din Codul muncii: La finalul fiecărui răspuns, include o citare completă a articolului sau articolelor relevante din Codul muncii pentru a sprijini informațiile oferite.
+    Explicarea incertitudinilor: În cazurile în care răspunsul implică un grad de incertitudine, oferă detalii despre articolele care pot fi relevante și explică raționamentul din spatele interpretării tale.
+    Procent de încredere în răspuns: Indică un procent de încredere pentru fiecare răspuns, bazat pe complexitatea și claritatea întrebării inițiale.
+    Sugestii de prompturi suplimentare: La finalul fiecărui răspuns, oferă sugestii de prompturi care ar putea ajuta la clarificarea ulterioară a subiectului discutat sau la explorarea altor aspecte relevante.
     
-    If the user requests purchasing a stock, call \`show_stock_purchase_ui\` to show the purchase UI.
-    If the user just wants the price, call \`show_stock_price\` to show the price.
-    If you want to show trending stocks, call \`list_stocks\`.
-    If you want to show events, call \`get_events\`.
-    If the user wants to sell stock, or complete another impossible task, respond that you are a demo and cannot do that.
-    
-    Besides that, you can also chat with users and do some calculations if needed.`,
+    Respectarea limitelor AI: Evită să presupui că AI-ul va înțelege sau va face deducții din informațiile incomplete. Dacă există modificări legislative recente care pot influența răspunsul, menționează acest lucru și indică unde pot fi găsite aceste modificări.`,
     messages: [
       ...aiState.get().messages.map((message: any) => ({
         role: message.role,

@@ -13,10 +13,10 @@ export const metadata = {
     ? new URL(`https://${process.env.VERCEL_URL}`)
     : undefined,
   title: {
-    default: 'Next.js AI Chatbot',
-    template: `%s - Next.js AI Chatbot`
+    default: 'Chatbot romanesc despre Codul Muncii',
+    template: `%s - Chatbot romanesc despre Codul Muncii`
   },
-  description: 'An AI-powered chatbot template built with Next.js and Vercel.',
+  description: 'AI chatbot despre Codul muncii. Powered by Vercel',
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon-16x16.png',
@@ -56,7 +56,6 @@ export default function RootLayout({ children }: RootLayoutProps) {
             <Header />
             <main className="flex flex-col flex-1 bg-muted/50">{children}</main>
           </div>
-          <TailwindIndicator />
         </Providers>
       </body>
     </html>

@@ -74,17 +74,17 @@ export enum ResultCode {
 export const getMessageFromCode = (resultCode: string) => {
   switch (resultCode) {
     case ResultCode.InvalidCredentials:
-      return 'Invalid credentials!'
+      return 'Credențiale invalide!'
     case ResultCode.InvalidSubmission:
-      return 'Invalid submission, please try again!'
+      return 'Trimitere invalidă, te rugăm să încerci din nou!'
     case ResultCode.UserAlreadyExists:
-      return 'User already exists, please log in!'
+      return 'Utilizatorul deja există, te rugăm să te conectezi!'
     case ResultCode.UserCreated:
-      return 'User created, welcome!'
+      return 'Utilizator creat, bun venit!'
     case ResultCode.UnknownError:
-      return 'Something went wrong, please try again!'
+      return 'Ceva nu a mers bine, te rugăm să încerci din nou!'
     case ResultCode.UserLoggedIn:
-      return 'Logged in!'
+      return 'Autentificat cu succes!'
   }
 }
 
