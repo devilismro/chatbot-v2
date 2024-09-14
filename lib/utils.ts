@@ -68,7 +68,9 @@ export enum ResultCode {
   UserAlreadyExists = 'USER_ALREADY_EXISTS',
   UnknownError = 'UNKNOWN_ERROR',
   UserCreated = 'USER_CREATED',
-  UserLoggedIn = 'USER_LOGGED_IN'
+  UserLoggedIn = 'USER_LOGGED_IN',
+  UserNotFound = 'USER_NOT_FOUND', // Add this
+  PasswordResetSent = 'PASSWORD_RESET_SENT' // Add this
 }
 
 export const getMessageFromCode = (resultCode: string) => {
@@ -85,6 +87,10 @@ export const getMessageFromCode = (resultCode: string) => {
       return 'Ceva nu a mers bine, te rugăm să încerci din nou!'
     case ResultCode.UserLoggedIn:
       return 'Autentificat cu succes!'
+    case ResultCode.UserNotFound: 
+      return 'Utilizatorul nu a fost găsit!'
+    case ResultCode.PasswordResetSent:
+      return 'Linkul pentru resetarea parolei a fost trimis!'
   }
 }
 
@@ -132,4 +138,3 @@ export function subMonths(date: Date, amount: number) {
   newDate.setMonth(newDate.getMonth() - amount)
   return newDate
 }
-
