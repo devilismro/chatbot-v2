@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { kv } from '@vercel/kv'
-import bcrypt from 'bcryptjs'
+import { getStringFromBuffer } from '@/lib/utils'
 
 export async function POST(req: Request) {
   const { token, password } = await req.json()
@@ -21,11 +21,15 @@ export async function POST(req: Request) {
       )
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const salt = crypto.randomUUID()
+    const encoder = new TextEncoder()
+    const saltedPassword = encoder.encode(password + salt)
+    const hashedPasswordBuffer = await crypto.subtle.digest('SHA-256', saltedPassword)
+    const hashedPassword = getStringFromBuffer(hashedPasswordBuffer)
     console.log('Hashed password being saved:', hashedPassword)
 
-    await kv.hset(`user:${email}`, { password: hashedPassword })
-    console.log('Password updated in KV for user:', email)
+    await kv.hset(`user:${email}`, { password: hashedPassword, salt: salt })
+    console.log('Password and salt updated in KV for user:', email)
 
     await kv.del(`password-reset:${token}`)
     console.log('Reset token deleted')
