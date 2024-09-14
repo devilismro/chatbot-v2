@@ -32,9 +32,9 @@ export default function LoginForm() {
       const res = await fetch('/api/request-password-reset', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email: resetEmail }),
+        body: JSON.stringify({ email: resetEmail })
       })
 
       if (res.ok) {

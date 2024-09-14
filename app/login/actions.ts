@@ -7,7 +7,6 @@ import { z } from 'zod'
 import { kv } from '@vercel/kv'
 import { ResultCode } from '@/lib/utils'
 import { v4 as uuidv4 } from 'uuid'
-import sendPasswordResetEmail from '@/lib/send-email'
 
 export async function getUser(email: string) {
   const user = await kv.hgetall<User>(`user:${email}`)
