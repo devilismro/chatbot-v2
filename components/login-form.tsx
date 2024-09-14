@@ -8,7 +8,6 @@ import { toast } from 'sonner'
 import { IconSpinner } from './ui/icons'
 import { getMessageFromCode } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
-import { sendResetPasswordEmail } from '@/app/login/actions'
 
 export default function LoginForm() {
   const router = useRouter()
@@ -26,14 +25,28 @@ export default function LoginForm() {
       }
     }
   }, [result, router])
-
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const result = await sendResetPasswordEmail(resetEmail)
+    try {
+      const res = await fetch('/api/request-password-reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: resetEmail }),
+      })
 
-    if (result) {
-      toast(getMessageFromCode(result.resultCode))
+      if (res.ok) {
+        const data = await res.json()
+        toast.success(data.message)
+      } else {
+        const errorData = await res.json()
+        toast.error(errorData.message || 'Something went wrong')
+      }
+    } catch (error) {
+      console.error('Error requesting password reset:', error)
+      toast.error('Error requesting password reset')
     }
   }
 

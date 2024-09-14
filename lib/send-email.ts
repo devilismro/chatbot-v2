@@ -10,9 +10,9 @@ export default async function sendPasswordResetEmail(email: string, resetLink: s
   const msg = {
     to: email,
     from: 'noreply@myvolt.io',
-    subject: 'Solicitare de resetare a parolei',
-    text: `Ai solicitat resetarea parolei. Accesează următorul link pentru a reseta parola: ${resetLink}`,
-    html: `<strong>Ai solicitat resetarea parolei. Accesează următorul link pentru a reseta parola:</strong><br><a href="${resetLink}">Resetează Parola</a><br><br>Cu stimă, echipa Chatbot Codul Muncii`
+    subject: 'Password Reset Request',
+    text: `You requested to reset your password. Use this link: ${resetLink}`,
+    html: `<strong>You requested to reset your password.</strong><br>Use this link: <a href="${resetLink}">Reset Password</a>`
   }
 
   try {

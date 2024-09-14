@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { kv } from '@vercel/kv'
 import { ResultCode } from '@/lib/utils'
 import { v4 as uuidv4 } from 'uuid'
-import sendPasswordResetEmail from '@/lib/send-email' 
+import sendPasswordResetEmail from '@/lib/send-email'
 
 export async function getUser(email: string) {
   const user = await kv.hgetall<User>(`user:${email}`)
@@ -72,33 +72,26 @@ export async function authenticate(
   }
 }
 
-export async function sendResetPasswordEmail(email: string): Promise<Result> {
+export async function requestPasswordReset(
+  email: string
+): Promise<{ message: string }> {
   try {
-    const user = await kv.hgetall<User>(`user:${email}`)
-    if (!user) {
-      return {
-        type: 'error',
-        resultCode: ResultCode.UserNotFound
-      }
+    const res = await fetch('/api/send-password-reset', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email })
+    })
+
+    if (!res.ok) {
+      throw new Error('Failed to request password reset')
     }
 
-    const token = uuidv4()
-    const expirationTime = 60 * 60 * 24
-
-    await kv.set(`password-reset:${token}`, email, { ex: expirationTime })
-
-    const resetLink = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${token}`
-    await sendPasswordResetEmail(email, resetLink) 
-
-    return {
-      type: 'success',
-      resultCode: ResultCode.PasswordResetSent
-    }
+    const data = await res.json()
+    return data
   } catch (error) {
-    console.error(error)
-    return {
-      type: 'error',
-      resultCode: ResultCode.UnknownError
-    }
+    console.error('Error requesting password reset:', error)
+    throw error
   }
 }
