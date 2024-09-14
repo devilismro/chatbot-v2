@@ -18,6 +18,8 @@ import { useEnterSubmit } from '@/lib/hooks/use-enter-submit'
 import { nanoid } from 'nanoid'
 import { useRouter } from 'next/navigation'
 
+
+
 export function PromptForm({
   input,
   setInput
@@ -43,7 +45,6 @@ export function PromptForm({
       onSubmit={async (e: any) => {
         e.preventDefault()
 
-        // Blur focus on mobile
         if (window.innerWidth < 600) {
           e.target['message']?.blur()
         }
@@ -52,7 +53,6 @@ export function PromptForm({
         setInput('')
         if (!value) return
 
-        // Optimistically add user message UI
         setMessages(currentMessages => [
           ...currentMessages,
           {
@@ -61,7 +61,6 @@ export function PromptForm({
           }
         ])
 
-        // Submit and get response message
         const responseMessage = await submitUserMessage(value)
         setMessages(currentMessages => [...currentMessages, responseMessage])
       }}
@@ -78,8 +77,7 @@ export function PromptForm({
               }}
             >
               <IconPlus />
-              <span className="sr-only">
-                 Chat Nou</span>
+              <span className="sr-only">Chat Nou</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>Chat nou</TooltipContent>
@@ -104,10 +102,10 @@ export function PromptForm({
             <TooltipTrigger asChild>
               <Button type="submit" size="icon" disabled={input === ''}>
                 <IconArrowElbow />
-                <span className="sr-only">Send message</span>
+                <span className="sr-only">Trimite mesajul</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Send message</TooltipContent>
+            <TooltipContent>Trimite mesajul</TooltipContent>
           </Tooltip>
         </div>
       </div>

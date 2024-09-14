@@ -132,3 +132,4 @@ export function subMonths(date: Date, amount: number) {
   newDate.setMonth(newDate.getMonth() - amount)
   return newDate
 }
+
