@@ -7,13 +7,13 @@ export async function POST(req: Request) {
   const { email } = await req.json()
 
   if (!email) {
-    return NextResponse.json({ message: 'Email is required' }, { status: 400 })
+    return NextResponse.json({ message: 'Email-ul este necesar' }, { status: 400 })
   }
 
   try {
     const user = await kv.hgetall(`user:${email}`)
     if (!user) {
-      return NextResponse.json({ message: 'User not found' }, { status: 404 })
+      return NextResponse.json({ message: 'User-ul nu a fost gasit!' }, { status: 404 })
     }
 
     const token = uuidv4()
@@ -23,9 +23,9 @@ export async function POST(req: Request) {
     const resetLink = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${token}`
     await sendPasswordResetEmail(email, resetLink)
 
-    return NextResponse.json({ message: 'Password reset email sent' }, { status: 200 })
+    return NextResponse.json({ message: 'Email-ul pentru resetarea parolei a fost trimis cu succes!' }, { status: 200 })
   } catch (error) {
     console.error('Error sending password reset email:', error)
-    return NextResponse.json({ message: 'Error sending password reset email' }, { status: 500 })
+    return NextResponse.json({ message: 'Ooops! A aparut o eroare la trimiterea emailului. Va rugam incercati din nou!' }, { status: 500 })
   }
 }

@@ -1,6 +1,9 @@
 import sgMail from '@sendgrid/mail'
 
-export default async function sendPasswordResetEmail(email: string, resetLink: string) {
+export default async function sendPasswordResetEmail(
+  email: string,
+  resetLink: string
+) {
   if (!process.env.SENDGRID_API_KEY) {
     throw new Error('SENDGRID_API_KEY is not set in the environment variables')
   }
@@ -10,9 +13,18 @@ export default async function sendPasswordResetEmail(email: string, resetLink: s
   const msg = {
     to: email,
     from: 'noreply@myvolt.io',
-    subject: 'Password Reset Request',
-    text: `You requested to reset your password. Use this link: ${resetLink}`,
-    html: `<strong>You requested to reset your password.</strong><br>Use this link: <a href="${resetLink}">Reset Password</a>`
+    subject: 'Cerere de Resetare a Parolei',
+    text: `Ai solicitat resetarea parolei. Folosește acest link: ${resetLink} pentru a reseta parola.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2 style="color: #000;">Cerere de Resetare a Parolei</h2>
+        <p>Ai solicitat resetarea parolei pentru contul tău. Pentru a finaliza procesul de resetare, te rugăm să accesezi linkul de mai jos:</p>
+        <a href="${resetLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007BFF; text-decoration: none; border-radius: 5px; font-weight: bold;">Resetează Parola</a>
+        <p>Dacă nu ai solicitat această acțiune, poți ignora acest email și nu vor fi efectuate modificări în contul tău.</p>
+        <br />
+        <p>Cu stimă,<br />Echipa MyVolt</p>
+      </div>
+    `
   }
 
   try {
