@@ -2,9 +2,11 @@
 
 import { signIn } from '@/auth'
 import { User } from '@/lib/types'
+import { AuthError } from 'next-auth'
+import { z } from 'zod'
 import { kv } from '@vercel/kv'
-import bcrypt from 'bcryptjs'
 import { ResultCode } from '@/lib/utils'
+
 
 interface Result {
   type: string
@@ -28,56 +30,50 @@ export async function authenticate(
   formData: FormData
 ): Promise<Result | undefined> {
   try {
-    const email = formData.get('email')?.toString()
-    const password = formData.get('password')?.toString()
+    const email = formData.get('email')
+    const password = formData.get('password')
 
-    console.log('Attempting login for email:', email)
+    const parsedCredentials = z
+      .object({
+        email: z.string().email(),
+        password: z.string().min(6)
+      })
+      .safeParse({
+        email,
+        password
+      })
 
-    if (!email || !password) {
-      console.log('Missing email or password')
+    if (parsedCredentials.success) {
+      await signIn('credentials', {
+        email,
+        password,
+        redirect: false
+      })
+
+      return {
+        type: 'success',
+        resultCode: ResultCode.UserLoggedIn
+      }
+    } else {
       return {
         type: 'error',
         resultCode: ResultCode.InvalidCredentials
       }
-    }
-
-    const user = await getUser(email)
-    if (!user || !user.password) {
-      console.log('User not found or no password in KV')
-      return {
-        type: 'error',
-        resultCode: ResultCode.InvalidCredentials
-      }
-    }
-
-    console.log('Comparing entered password with stored hash...')
-    const isPasswordValid = await bcrypt.compare(password, user.password)
-    console.log('Password comparison result:', isPasswordValid)
-
-    if (!isPasswordValid) {
-      console.log('Password is invalid')
-      return {
-        type: 'error',
-        resultCode: ResultCode.InvalidCredentials
-      }
-    }
-
-    console.log('User authenticated, signing in...')
-    await signIn('credentials', {
-      email,
-      password,
-      redirect: false
-    })
-
-    return {
-      type: 'success',
-      resultCode: ResultCode.UserLoggedIn
     }
   } catch (error) {
-    console.error('Error during authentication:', error)
-    return {
-      type: 'error',
-      resultCode: ResultCode.UnknownError
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case 'CredentialsSignin':
+          return {
+            type: 'error',
+            resultCode: ResultCode.InvalidCredentials
+          }
+        default:
+          return {
+            type: 'error',
+            resultCode: ResultCode.UnknownError
+          }
+      }
     }
   }
 }
