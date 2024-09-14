@@ -69,8 +69,8 @@ export enum ResultCode {
   UnknownError = 'UNKNOWN_ERROR',
   UserCreated = 'USER_CREATED',
   UserLoggedIn = 'USER_LOGGED_IN',
-  UserNotFound = 'USER_NOT_FOUND', // Add this
-  PasswordResetSent = 'PASSWORD_RESET_SENT' // Add this
+  UserNotFound = 'USER_NOT_FOUND', 
+  PasswordResetSent = 'PASSWORD_RESET_SENT' 
 }
 
 export const getMessageFromCode = (resultCode: string) => {

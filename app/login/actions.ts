@@ -4,7 +4,6 @@ import { signIn } from '@/auth'
 import { User } from '@/lib/types'
 import { kv } from '@vercel/kv'
 import bcrypt from 'bcryptjs'
-import { z } from 'zod'
 import { ResultCode } from '@/lib/utils'
 
 interface Result {
@@ -16,6 +15,7 @@ export async function getUser(email: string): Promise<User | null> {
   try {
     const user = await kv.hgetall<User>(`user:${email}`)
     console.log('User data fetched:', user ? user.email : 'Not Found')
+    console.log('Stored password hash:', user ? user.password : 'No password found')
     return user
   } catch (error) {
     console.error('Error fetching user:', error)
@@ -50,6 +50,7 @@ export async function authenticate(
       }
     }
 
+    console.log('Comparing entered password with stored hash...')
     const isPasswordValid = await bcrypt.compare(password, user.password)
     console.log('Password comparison result:', isPasswordValid)
 
