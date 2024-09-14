@@ -1,31 +1,31 @@
-import { NextApiRequest, NextApiResponse } from 'next'
+import { NextResponse } from 'next/server'
 import { kv } from '@vercel/kv'
 import { v4 as uuidv4 } from 'uuid'
 import sendPasswordResetEmail from '@/lib/send-email'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { email } = req.body
+export async function POST(req: Request) {
+  const { email } = await req.json()
 
   if (!email) {
-    return res.status(400).json({ message: 'Email is required' })
+    return NextResponse.json({ message: 'Email is required' }, { status: 400 })
   }
 
   try {
     const user = await kv.hgetall(`user:${email}`)
     if (!user) {
-      return res.status(404).json({ message: 'User not found' })
+      return NextResponse.json({ message: 'User not found' }, { status: 404 })
     }
 
     const token = uuidv4()
-    const expirationTime = 60 * 60 * 24 
+    const expirationTime = 60 * 60 * 24
     await kv.set(`password-reset:${token}`, email, { ex: expirationTime })
 
     const resetLink = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${token}`
     await sendPasswordResetEmail(email, resetLink)
 
-    return res.status(200).json({ message: 'Password reset email sent' })
+    return NextResponse.json({ message: 'Password reset email sent' }, { status: 200 })
   } catch (error) {
     console.error('Error sending password reset email:', error)
-    return res.status(500).json({ message: 'Error sending password reset email' })
+    return NextResponse.json({ message: 'Error sending password reset email' }, { status: 500 })
   }
 }

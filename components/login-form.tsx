@@ -25,18 +25,20 @@ export default function LoginForm() {
       }
     }
   }, [result, router])
+  
+  
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault()
-
+  
     try {
       const res = await fetch('/api/request-password-reset', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: resetEmail })
+        body: JSON.stringify({ email: resetEmail }),  
       })
-
+  
       if (res.ok) {
         const data = await res.json()
         toast.success(data.message)
@@ -49,6 +51,7 @@ export default function LoginForm() {
       toast.error('Error requesting password reset')
     }
   }
+  
 
   return (
     <>
