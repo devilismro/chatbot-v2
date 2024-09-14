@@ -1,11 +1,8 @@
-'use client'
-
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-
 import { toast } from 'sonner'
 
 export default function ResetPasswordPage() {
@@ -18,9 +15,11 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     const tokenParam = urlParams.get('token')
+    console.log('Token from URL:', tokenParam)
+
     if (tokenParam) {
       setToken(tokenParam)
-      setIsTokenValid(true) 
+      setIsTokenValid(true)
     }
   }, [])
 
@@ -28,7 +27,7 @@ export default function ResetPasswordPage() {
     e.preventDefault()
 
     if (!isTokenValid) {
-      toast.error('Token invalid sau expirate')
+      toast.error('Token invalid sau expirat')
       return
     }
 
@@ -36,6 +35,8 @@ export default function ResetPasswordPage() {
       toast.error('Parolele nu se potrivesc!')
       return
     }
+
+    console.log('Attempting to reset password with token:', token)
 
     try {
       const res = await fetch('/api/reset-password', {
@@ -46,14 +47,17 @@ export default function ResetPasswordPage() {
         body: JSON.stringify({ token, password })
       })
 
+      const data = await res.json()
+      console.log('Password reset response:', data)
+
       if (res.ok) {
         toast.success('Parola a fost resetată cu succes!')
         router.push('/login')
       } else {
-        const { message } = await res.json()
-        toast.error(message || 'Eroare la resetarea parolei!')
+        toast.error(data.message || 'Eroare la resetarea parolei!')
       }
     } catch (error) {
+      console.error('Error resetting password:', error)
       toast.error('Eroare la resetarea parolei!')
     }
   }
