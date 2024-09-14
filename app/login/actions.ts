@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { kv } from '@vercel/kv'
 import { ResultCode } from '@/lib/utils'
 import { v4 as uuidv4 } from 'uuid'
-import { sendPasswordResetEmail } from '@/lib/email'
+import sendPasswordResetEmail from '@/lib/send-email' 
 
 export async function getUser(email: string) {
   const user = await kv.hgetall<User>(`user:${email}`)
@@ -18,7 +18,6 @@ interface Result {
   type: string
   resultCode: ResultCode
 }
-
 
 export async function authenticate(
   _prevState: Result | undefined,
@@ -84,13 +83,12 @@ export async function sendResetPasswordEmail(email: string): Promise<Result> {
     }
 
     const token = uuidv4()
-    const expirationTime = 60 * 60 * 24 
+    const expirationTime = 60 * 60 * 24
 
     await kv.set(`password-reset:${token}`, email, { ex: expirationTime })
 
-
     const resetLink = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${token}`
-    await sendPasswordResetEmail(email, resetLink)
+    await sendPasswordResetEmail(email, resetLink) 
 
     return {
       type: 'success',

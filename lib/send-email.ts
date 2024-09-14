@@ -1,11 +1,10 @@
 import sgMail from '@sendgrid/mail'
 
-export async function sendPasswordResetEmail(email: string, resetLink: string) {
+export default async function sendPasswordResetEmail(email: string, resetLink: string) {
   if (!process.env.SENDGRID_API_KEY) {
     throw new Error('SENDGRID_API_KEY is not set in the environment variables')
   }
 
-  const sgMail = (await import('@sendgrid/mail')).default
   sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 
   const msg = {
