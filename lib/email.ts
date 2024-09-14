@@ -4,9 +4,10 @@ export async function sendPasswordResetEmail(email: string, resetLink: string) {
   if (!process.env.SENDGRID_API_KEY) {
     throw new Error('SENDGRID_API_KEY is not set in the environment variables')
   }
-  
+
+  const sgMail = (await import('@sendgrid/mail')).default
   sgMail.setApiKey(process.env.SENDGRID_API_KEY)
-  
+
   const msg = {
     to: email,
     from: 'noreply@myvolt.io',
@@ -18,6 +19,10 @@ export async function sendPasswordResetEmail(email: string, resetLink: string) {
   try {
     await sgMail.send(msg)
   } catch (error: any) {
-    console.error(error.response.body.errors) 
+    if (error.response && error.response.body && error.response.body.errors) {
+      console.error(error.response.body.errors)
+    } else {
+      console.error('Error sending email:', error)
+    }
   }
 }
