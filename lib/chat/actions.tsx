@@ -1,5 +1,4 @@
 import 'server-only'
-import React from 'react'
 
 import path from 'path'
 import {
@@ -21,16 +20,19 @@ import {
   Purchase
 } from '@/components/stocks'
 
-import { serializeChatHistory } from './serializeChatHistory'
-import { retriever } from './retreiver'
-import { ChatOpenAI } from '@langchain/openai'
-import { BufferMemory } from 'langchain/memory'
-import { ChatPromptTemplate } from '@langchain/core/prompts'
-import { formatDocumentsAsString } from 'langchain/util/document'
+import { serializeChatHistory } from './serializeChatHistory'; 
+import { retriever } from './retreiver'; 
+import { ChatOpenAI } from '@langchain/openai';
+import { BufferMemory } from 'langchain/memory';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { formatDocumentsAsString } from 'langchain/util/document';
 
 import * as z from 'zod'
+import { EventsSkeleton } from '@/components/stocks/events-skeleton'
 import { Events } from '@/components/stocks/events'
+import { StocksSkeleton } from '@/components/stocks/stocks-skeleton'
 import { Stocks } from '@/components/stocks/stocks'
+import { StockSkeleton } from '@/components/stocks/stock-skeleton'
 import {
   formatNumber,
   runAsyncFnWithoutBlocking,
@@ -42,14 +44,15 @@ import { SpinnerMessage, UserMessage } from '@/components/stocks/message'
 import { Chat, Message } from '@/lib/types'
 import { auth } from '@/auth'
 
-const openAIApiKey = process.env.OPENAI_API_KEY
+
+const openAIApiKey = process.env.OPENAI_API_KEY;
 
 const memory = new BufferMemory({
-  memoryKey: 'chatHistory',
-  inputKey: 'question',
-  outputKey: 'response',
-  returnMessages: true
-})
+  memoryKey: "chatHistory", 
+  inputKey: "question", 
+  outputKey: "response", 
+  returnMessages: true, 
+});
 
 const standaloneQuestionPrompt = ChatPromptTemplate.fromTemplate(`
 Rolul tău:
@@ -62,7 +65,7 @@ ISTORIC CONVERSAȚIE: {chatHistory}
 ÎNTREBARE URMĂTOARE: {question}
 ------------
 Te rog să reformulezi întrebarea următoare ca o întrebare completă care poate fi înțeleasă independent:
-`)
+`);
 
 const answerPrompt = ChatPromptTemplate.fromTemplate(`
 Rolul tău:
@@ -77,7 +80,7 @@ ISTORIC CONVERSAȚIE: {chatHistory}
 ÎNTREBARE: {question}
 ------------
 Te rog să răspunzi în detaliu, evaluând și încrederea răspunsului pe o scară procentuală în funcție de complexitatea întrebării. Procent de încredere:
-`)
+`);
 
 async function confirmPurchase(symbol: string, price: number, amount: number) {
   'use server'
@@ -150,9 +153,9 @@ async function confirmPurchase(symbol: string, price: number, amount: number) {
 }
 
 async function submitUserMessage(content: string) {
-  'use server'
+  'use server';
 
-  const aiState = getMutableAIState<typeof AI>()
+  const aiState = getMutableAIState<typeof AI>();
 
   aiState.update({
     ...aiState.get(),
@@ -161,88 +164,48 @@ async function submitUserMessage(content: string) {
       {
         id: nanoid(),
         role: 'user',
-        content
-      }
-    ]
-  })
+        content,
+      },
+    ],
+  });
 
-  const textStream = createStreamableValue('')
-  const textNode = <BotMessage content={textStream.value} />
+  const chatHistory = serializeChatHistory(aiState.get().messages);
 
-  const assistantMessageUI = createStreamableUI(<SpinnerMessage />)
+  const chatModel = new ChatOpenAI({ openAIApiKey, model: 'gpt-4o-mini-2024-07-18', temperature: 0 });
 
-  let isFirstToken = true
-
-  const chatHistory = serializeChatHistory(aiState.get().messages)
-
-  const chatModel = new ChatOpenAI({
-    openAIApiKey,
-    model: 'gpt-4o-mini-2024-07-18',
-    temperature: 0
-  })
-
-  const questionChain = standaloneQuestionPrompt.pipe(chatModel)
+  const questionChain = standaloneQuestionPrompt.pipe(chatModel);
   const standaloneQuestion = await questionChain.invoke({
     chatHistory,
-    question: content
-  })
+    question: content,
+  });
 
-  const retrievedContext = await retriever.getRelevantDocuments(
-    standaloneQuestion.text
-  )
-  const serializedContext = formatDocumentsAsString(retrievedContext)
+  const retrievedContext = await retriever.getRelevantDocuments(standaloneQuestion.text);
 
-  const streamingChatModel = new ChatOpenAI({
-    openAIApiKey,
-    model: 'gpt-4o-mini-2024-07-18',
-    temperature: 0,
-    streaming: true,
-    callbacks: [
-      {
-        handleLLMNewToken: (token: string) => {
-          if (isFirstToken) {
-            assistantMessageUI.update(textNode)
-            isFirstToken = false
-          }
-          textStream.update(token)
-        },
-        handleLLMEnd: output => {
-          textStream.done()
-          assistantMessageUI.done()
+  const serializedContext = formatDocumentsAsString(retrievedContext);
 
-          aiState.update({
-            ...aiState.get(),
-            messages: [
-              ...aiState.get().messages,
-              {
-                id: nanoid(),
-                role: 'assistant',
-                content: output.generations[0][0].text
-              }
-            ]
-          })
-        },
-        handleLLMError: error => {
-          console.error('LLM Error:', error)
-          textStream.done()
-          assistantMessageUI.done()
-        }
-      }
-    ]
-  })
-
-  const answerChain = answerPrompt.pipe(streamingChatModel)
-
-  await answerChain.invoke({
+  const answerChain = answerPrompt.pipe(chatModel);
+  const answer = await answerChain.invoke({
     chatHistory,
     retrievedContext: serializedContext,
-    question: standaloneQuestion.text
-  })
+    question: standaloneQuestion.text,
+  });
+
+  aiState.update({
+    ...aiState.get(),
+    messages: [
+      ...aiState.get().messages,
+      {
+        id: nanoid(),
+        role: 'assistant',
+        content: answer.text,
+      },
+    ],
+  });
 
   return {
     id: nanoid(),
-    display: assistantMessageUI.value
-  }
+    display: <BotMessage content={answer.text} />,
+  };
 }
 
 export type AIState = {
