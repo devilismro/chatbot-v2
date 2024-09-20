@@ -3,10 +3,9 @@
 import { signIn } from '@/auth'
 import { User } from '@/lib/types'
 import { AuthError } from 'next-auth'
-import { z } from 'zod'
+import * as z from 'zod'
 import { kv } from '@vercel/kv'
 import { ResultCode } from '@/lib/utils'
-
 
 interface Result {
   type: string
@@ -17,7 +16,10 @@ export async function getUser(email: string): Promise<User | null> {
   try {
     const user = await kv.hgetall<User>(`user:${email}`)
     console.log('User data fetched:', user ? user.email : 'Not Found')
-    console.log('Stored password hash:', user ? user.password : 'No password found')
+    console.log(
+      'Stored password hash:',
+      user ? user.password : 'No password found'
+    )
     return user
   } catch (error) {
     console.error('Error fetching user:', error)
