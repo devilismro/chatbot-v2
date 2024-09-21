@@ -39,3 +39,30 @@ export interface User extends Record<string, any> {
   password: string
   salt: string
 }
+
+export type ChatMessage = UserMessage | AssistantMessage | ToolMessage | SystemMessage;
+
+interface BaseMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+}
+
+interface UserMessage extends BaseMessage {
+  role: 'user';
+  content: string;
+}
+
+interface AssistantMessage extends BaseMessage {
+  role: 'assistant';
+  content: string;
+}
+
+interface ToolMessage extends BaseMessage {
+  role: 'tool';
+  content: any;  
+}
+
+interface SystemMessage extends BaseMessage {
+  role: 'system';
+  content: string;
+}

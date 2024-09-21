@@ -1,156 +1,109 @@
-import 'server-only'
+import 'server-only';
 
-import path from 'path'
 import {
   createAI,
   createStreamableUI,
   getMutableAIState,
   getAIState,
-  streamUI,
-  createStreamableValue
-} from 'ai/rsc'
-import { openai } from '@ai-sdk/openai'
+} from 'ai/rsc';
 
-import {
-  spinner,
-  BotCard,
-  BotMessage,
-  SystemMessage,
-  Stock,
-  Purchase
-} from '@/components/stocks'
-
-import { serializeChatHistory } from './serializeChatHistory'; 
-import { retriever } from './retreiver'; 
 import { ChatOpenAI } from '@langchain/openai';
 import { BufferMemory } from 'langchain/memory';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { formatDocumentsAsString } from 'langchain/util/document';
+import { Document } from '@langchain/core/documents';
 
-import * as z from 'zod'
-import { EventsSkeleton } from '@/components/stocks/events-skeleton'
-import { Events } from '@/components/stocks/events'
-import { StocksSkeleton } from '@/components/stocks/stocks-skeleton'
-import { Stocks } from '@/components/stocks/stocks'
-import { StockSkeleton } from '@/components/stocks/stock-skeleton'
-import {
-  formatNumber,
-  runAsyncFnWithoutBlocking,
-  sleep,
-  nanoid
-} from '@/lib/utils'
-import { saveChat } from '@/app/actions'
-import { SpinnerMessage, UserMessage } from '@/components/stocks/message'
-import { Chat, Message } from '@/lib/types'
-import { auth } from '@/auth'
+import { spinner, BotMessage, SystemMessage } from '@/components/stocks';
 
+import { serializeChatHistory } from './serializeChatHistory';
+import { retriever } from './retreiver';
+import { nanoid } from '@/lib/utils';
+import { saveChat } from '@/app/actions';
+import { auth } from '@/auth';
 
-const openAIApiKey = process.env.OPENAI_API_KEY;
+import ToolMessageComponent from '@/components/toolmessage';
 
-const memory = new BufferMemory({
-  memoryKey: "chatHistory", 
-  inputKey: "question", 
-  outputKey: "response", 
-  returnMessages: true, 
-});
+type Chat = {
+  id: string;
+  title: string;
+  userId: string;
+  createdAt: Date;
+  messages: ChatMessage[];
+  path: string;
+};
+
+type ToolContent = any; 
+
+type ChatMessage = UserMessage | AssistantMessage | ToolMessage | SystemMessage;
+
+interface BaseMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+}
+
+interface UserMessage extends BaseMessage {
+  role: 'user';
+  content: string;
+}
+
+interface AssistantMessage extends BaseMessage {
+  role: 'assistant';
+  content: string;
+}
+
+interface ToolMessage extends BaseMessage {
+  role: 'tool';
+  content: ToolContent;
+}
+
+interface SystemMessage extends BaseMessage {
+  role: 'system';
+  content: string;
+}
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries = 3,
+  delay = 1000
+): Promise<T> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (i === retries - 1) {
+        throw error;
+      }
+      const backoffDelay = delay * Math.pow(2, i);
+      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+    }
+  }
+  throw new Error('Failed to execute function after maximum retries');
+}
+
+const MAX_HISTORY_LENGTH = 10;
+function truncateHistory(history: ChatMessage[]): ChatMessage[] {
+  return history.slice(-MAX_HISTORY_LENGTH);
+}
 
 const standaloneQuestionPrompt = ChatPromptTemplate.fromTemplate(`
 Rolul tău:
-Ești un expert cu peste 30 de ani de experiență practică în legislația muncii și dreptul muncii din România. Vei răspunde exclusiv în limba română, oferind informații clare, precise și detaliate. Răspunsurile tale vor fi adaptate la contextul specific al întrebării și vor include exemple practice relevante, atunci când este necesar. NU răspunzi la întrebări în afara Codului Muncii din România.
-
-Acesta este istoricul conversației și întrebarea următoare:
-------------
+Ești un expert cu peste 30 de ani de experiență practică în legislația muncii și dreptul muncii din România. Vei răspunde exclusiv în limba română, oferind informații clare, precise și detaliate.
+------------ 
 ISTORIC CONVERSAȚIE: {chatHistory}
-------------
+------------ 
 ÎNTREBARE URMĂTOARE: {question}
-------------
-Te rog să reformulezi întrebarea următoare ca o întrebare completă care poate fi înțeleasă independent:
 `);
 
 const answerPrompt = ChatPromptTemplate.fromTemplate(`
 Rolul tău:
-Ești un expert cu peste 30 de ani de experiență practică în legislația muncii și dreptul muncii din România. Vei răspunde exclusiv în limba română, oferind informații clare, precise și detaliate, adaptate la contextul specific. Include exemple practice atunci când este relevant. NU răspunzi la întrebări în afara Codului Muncii din România.
-
-Acesta este istoricul conversației și întrebarea, împreună cu contextul relevant:
-------------
+Ești un expert cu peste 30 de ani de experiență practică în legislația muncii și dreptul muncii din România. Răspunde adaptat la contextul specific și includ exemple practice.
+------------ 
 CONTEXT: {retrievedContext}
-------------
+------------ 
 ISTORIC CONVERSAȚIE: {chatHistory}
-------------
+------------ 
 ÎNTREBARE: {question}
-------------
-Te rog să răspunzi în detaliu, evaluând și încrederea răspunsului pe o scară procentuală în funcție de complexitatea întrebării. Procent de încredere:
 `);
-
-async function confirmPurchase(symbol: string, price: number, amount: number) {
-  'use server'
-
-  const aiState = getMutableAIState<typeof AI>()
-
-  const purchasing = createStreamableUI(
-    <div className="inline-flex items-start gap-1 md:items-center">
-      {spinner}
-      <p className="mb-2">
-        Purchasing {amount} ${symbol}...
-      </p>
-    </div>
-  )
-
-  const systemMessage = createStreamableUI(null)
-
-  runAsyncFnWithoutBlocking(async () => {
-    await sleep(1000)
-
-    purchasing.update(
-      <div className="inline-flex items-start gap-1 md:items-center">
-        {spinner}
-        <p className="mb-2">
-          Purchasing {amount} ${symbol}... working on it...
-        </p>
-      </div>
-    )
-
-    await sleep(1000)
-
-    purchasing.done(
-      <div>
-        <p className="mb-2">
-          You have successfully purchased {amount} ${symbol}. Total cost:{' '}
-          {formatNumber(amount * price)}
-        </p>
-      </div>
-    )
-
-    systemMessage.done(
-      <SystemMessage>
-        You have purchased {amount} shares of {symbol} at ${price}. Total cost ={' '}
-        {formatNumber(amount * price)}.
-      </SystemMessage>
-    )
-
-    aiState.done({
-      ...aiState.get(),
-      messages: [
-        ...aiState.get().messages,
-        {
-          id: nanoid(),
-          role: 'system',
-          content: `[User has purchased ${amount} shares of ${symbol} at ${price}. Total cost = ${
-            amount * price
-          }]`
-        }
-      ]
-    })
-  })
-
-  return {
-    purchasingUI: purchasing.value,
-    newMessage: {
-      id: nanoid(),
-      display: systemMessage.value
-    }
-  }
-}
 
 async function submitUserMessage(content: string) {
   'use server';
@@ -169,26 +122,84 @@ async function submitUserMessage(content: string) {
     ],
   });
 
-  const chatHistory = serializeChatHistory(aiState.get().messages);
+  const truncatedChatHistory = truncateHistory(aiState.get().messages);
+  const chatHistory = serializeChatHistory(truncatedChatHistory);
+  console.log('Received user message:', content);
+  console.log('Current chat history:', chatHistory);
 
-  const chatModel = new ChatOpenAI({ openAIApiKey, model: 'gpt-4o-mini-2024-07-18', temperature: 0 });
-
-  const questionChain = standaloneQuestionPrompt.pipe(chatModel);
-  const standaloneQuestion = await questionChain.invoke({
-    chatHistory,
-    question: content,
+  const chatModel = new ChatOpenAI({
+    openAIApiKey: process.env.OPENAI_API_KEY,
+    model: 'gpt-4o-mini-2024-07-18',
+    temperature: 0,
+    timeout: 20000,
   });
 
-  const retrievedContext = await retriever.getRelevantDocuments(standaloneQuestion.text);
+  let standaloneQuestion;
+  console.time('Standalone Question Generation Time');
+  try {
+    const questionChain = standaloneQuestionPrompt.pipe(chatModel);
+    standaloneQuestion = await withRetry(
+      () =>
+        questionChain.invoke({
+          chatHistory,
+          question: content,
+        }),
+      5,
+      1000
+    );
+    console.timeEnd('Standalone Question Generation Time');
+    console.log('Standalone question generated:', standaloneQuestion.text);
+  } catch (error) {
+    console.error('Error during OpenAI question generation:', error);
+    return {
+      id: nanoid(),
+      display: (
+        <BotMessage content="Îmi pare rău, dar nu am putut genera un răspuns în acest moment!" />
+      ),
+    };
+  }
+
+  let retrievedContext: Document[] = [];
+  console.time('Document Retrieval Time');
+  try {
+    retrievedContext = await withRetry(
+      () => retriever.getRelevantDocuments(content),
+      3,
+      1000
+    );
+    console.timeEnd('Document Retrieval Time');
+    console.log('Retrieved documents from Supabase:', retrievedContext);
+  } catch (error) {
+    console.error('Error retrieving documents from Supabase:', error);
+  }
 
   const serializedContext = formatDocumentsAsString(retrievedContext);
 
-  const answerChain = answerPrompt.pipe(chatModel);
-  const answer = await answerChain.invoke({
-    chatHistory,
-    retrievedContext: serializedContext,
-    question: standaloneQuestion.text,
-  });
+  let answer;
+  console.time('Answer Generation Time');
+  try {
+    const answerChain = answerPrompt.pipe(chatModel);
+    answer = await withRetry(
+      () =>
+        answerChain.invoke({
+          chatHistory,
+          retrievedContext: serializedContext,
+          question: standaloneQuestion.text,
+        }),
+      5,
+      1000
+    );
+    console.timeEnd('Answer Generation Time');
+    console.log('Answer generated:', answer.text);
+  } catch (error) {
+    console.error('Error during OpenAI answer generation:', error);
+    return {
+      id: nanoid(),
+      display: (
+        <BotMessage content="Îmi pare rău, dar nu am putut genera un răspuns în acest moment!" />
+      ),
+    };
+  }
 
   aiState.update({
     ...aiState.get(),
@@ -202,59 +213,49 @@ async function submitUserMessage(content: string) {
     ],
   });
 
-  return {
-    id: nanoid(),
-    display: <BotMessage content={answer.text} />,
-  };
+  return { id: nanoid(), display: <BotMessage content={answer.text} /> };
 }
 
 export type AIState = {
-  chatId: string
-  messages: Message[]
-}
+  chatId: string;
+  messages: ChatMessage[];
+};
 
 export type UIState = {
-  id: string
-  display: React.ReactNode
-}[]
+  id: string;
+  display: React.ReactNode;
+}[];
 
 export const AI = createAI<AIState, UIState>({
   actions: {
     submitUserMessage,
-    confirmPurchase
   },
   initialUIState: [],
   initialAIState: { chatId: nanoid(), messages: [] },
   onGetUIState: async () => {
-    'use server'
-
-    const session = await auth()
-
+    'use server';
+    const session = await auth();
     if (session && session.user) {
-      const aiState = getAIState() as Chat
-
+      const aiState = getAIState() as AIState;
       if (aiState) {
-        const uiState = getUIStateFromAIState(aiState)
-        return uiState
+        const uiState = getUIStateFromAIState(aiState);
+        return uiState;
       }
     } else {
-      return
+      return;
     }
   },
   onSetAIState: async ({ state }) => {
-    'use server'
-
-    const session = await auth()
-
+    'use server';
+    const session = await auth();
     if (session && session.user) {
-      const { chatId, messages } = state
+      const { chatId, messages } = state;
+      const createdAt = new Date();
+      const userId = session.user.id as string;
+      const path = `/chat/${chatId}`;
 
-      const createdAt = new Date()
-      const userId = session.user.id as string
-      const path = `/chat/${chatId}`
-
-      const firstMessageContent = messages[0].content as string
-      const title = firstMessageContent.substring(0, 100)
+      const firstMessageContent = messages[0].content as string;
+      const title = firstMessageContent.substring(0, 100);
 
       const chat: Chat = {
         id: chatId,
@@ -262,52 +263,31 @@ export const AI = createAI<AIState, UIState>({
         userId,
         createdAt,
         messages,
-        path
+        path,
+      };
+
+      await saveChat(chat);
+    } else {
+      return;
+    }
+  },
+});
+
+export const getUIStateFromAIState = (aiState: AIState) => {
+  return aiState.messages
+    .filter((message: ChatMessage) => message.role !== 'system')
+    .map((message: ChatMessage, index: number) => {
+      const id = `${aiState.chatId}-${index}`;
+      let display: React.ReactNode = null;
+
+      if (message.role === 'tool') {
+        display = <ToolMessageComponent content={message.content} />;
+      } else if (message.role === 'user' || message.role === 'assistant') {
+        display = <BotMessage content={message.content} />;
+      } else {
+        display = null;
       }
 
-      await saveChat(chat)
-    } else {
-      return
-    }
-  }
-})
-
-export const getUIStateFromAIState = (aiState: Chat) => {
-  return aiState.messages
-    .filter(message => message.role !== 'system')
-    .map((message, index) => ({
-      id: `${aiState.chatId}-${index}`,
-      display:
-        message.role === 'tool' ? (
-          message.content.map(tool => {
-            return tool.toolName === 'listStocks' ? (
-              <BotCard>
-                {/* TODO: Infer types based on the tool result*/}
-                {/* @ts-expect-error */}
-                <Stocks props={tool.result} />
-              </BotCard>
-            ) : tool.toolName === 'showStockPrice' ? (
-              <BotCard>
-                {/* @ts-expect-error */}
-                <Stock props={tool.result} />
-              </BotCard>
-            ) : tool.toolName === 'showStockPurchase' ? (
-              <BotCard>
-                {/* @ts-expect-error */}
-                <Purchase props={tool.result} />
-              </BotCard>
-            ) : tool.toolName === 'getEvents' ? (
-              <BotCard>
-                {/* @ts-expect-error */}
-                <Events props={tool.result} />
-              </BotCard>
-            ) : null
-          })
-        ) : message.role === 'user' ? (
-          <UserMessage>{message.content as string}</UserMessage>
-        ) : message.role === 'assistant' &&
-          typeof message.content === 'string' ? (
-          <BotMessage content={message.content} />
-        ) : null
-    }))
-}
+      return { id, display };
+    });
+};

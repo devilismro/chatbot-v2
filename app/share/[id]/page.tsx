@@ -6,9 +6,28 @@ import { getSharedChat } from '@/app/actions'
 import { ChatList } from '@/components/chat-list'
 import { FooterText } from '@/components/footer'
 import { AI, UIState, getUIStateFromAIState } from '@/lib/chat/actions'
+import { Chat } from '@/components/chat'
+import { type ChatMessage } from '@/lib/types';
 
 export const runtime = 'edge'
 export const preferredRegion = 'home'
+
+
+const transformMessageContentToString = (content: any): string => {
+  if (Array.isArray(content)) {
+    return content
+      .map(part => {
+        if (part.type === 'text') {
+          return part.value;
+        } else if (part.type === 'image') {
+          return '[Image]'; 
+        }
+        return '';
+      })
+      .join(' ');
+  }
+  return typeof content === 'string' ? content : '';
+};
 
 interface SharePageProps {
   params: {
@@ -26,14 +45,29 @@ export async function generateMetadata({
   }
 }
 
+export type AIState = {
+  chatId: string;
+  messages: ChatMessage[];
+};
+
+
 export default async function SharePage({ params }: SharePageProps) {
-  const chat = await getSharedChat(params.id)
+  const chat = await getSharedChat(params.id);
 
   if (!chat || !chat?.sharePath) {
-    notFound()
+    notFound();
   }
 
-  const uiState: UIState = getUIStateFromAIState(chat)
+  const aiState: AIState = {
+    chatId: chat.id,
+    messages: chat.messages.map(message => ({
+      ...message,
+      content: transformMessageContentToString(message.content),
+    })),
+  };
+  
+
+  const uiState: UIState = getUIStateFromAIState(aiState);
 
   return (
     <>
@@ -54,5 +88,5 @@ export default async function SharePage({ params }: SharePageProps) {
       </div>
       <FooterText className="py-8" />
     </>
-  )
+  );
 }
