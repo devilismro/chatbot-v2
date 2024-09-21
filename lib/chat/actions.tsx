@@ -131,7 +131,7 @@ async function submitUserMessage(content: string) {
     openAIApiKey: process.env.OPENAI_API_KEY,
     model: 'gpt-4o-mini-2024-07-18',
     temperature: 0,
-    timeout: 20000,
+    timeout: 9000,
   });
 
   let standaloneQuestion;
