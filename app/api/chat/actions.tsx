@@ -160,7 +160,7 @@ async function submitUserMessage(content: string) {
   }
 
   let retrievedContext: Document[] = [];
-  console.time('Document Retrieval Time');
+  console.time('Document Retrieval Time is');
   try {
     retrievedContext = await withRetry(
       () => retriever.getRelevantDocuments(content),
