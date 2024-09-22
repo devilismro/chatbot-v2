@@ -1,9 +1,9 @@
 {
     "functions": {
-      "lib/chat/*": {  
+      "lib/chat/*": {
         "runtime": "nodejs18.x",
         "memory": 1024,  
-        "maxDuration": 60  
+        "maxDuration": 60 
       }
     }
   }
