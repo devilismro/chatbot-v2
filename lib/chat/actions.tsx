@@ -63,7 +63,7 @@ interface SystemMessage extends BaseMessage {
 
 async function withRetry<T>(
   fn: () => Promise<T>,
-  retries = 3,
+  retries = 2,
   delay = 1000
 ): Promise<T> {
   for (let i = 0; i < retries; i++) {
@@ -159,19 +159,19 @@ async function submitUserMessage(content: string) {
     }
   }
 
-  let retrievedContext: Document[] = []
-  console.time('Document Retrieval Time')
+  let retrievedContext: Document[] = [];
+  console.time('Document Retrieval Time');
   try {
     retrievedContext = await withRetry(
       () => retriever.getRelevantDocuments(content),
-      3,
-      1000
-    )
-    console.timeEnd('Document Retrieval Time')
-    console.log('Retrieved documents from Supabase:', retrievedContext)
+      2,  
+      1000  
+    );
+    console.timeEnd('Document Retrieval Time');
   } catch (error) {
-    console.error('Error retrieving documents from Supabase:', error)
+    console.error('Error retrieving documents from Supabase:', error);
   }
+  
 
   const serializedContext = formatDocumentsAsString(retrievedContext)
   console.log('Serialized retrieved context:', serializedContext)
@@ -187,8 +187,8 @@ async function submitUserMessage(content: string) {
           retrievedContext: serializedContext,
           question: standaloneQuestion.text
         }),
-      3,
-      1000
+      2, 
+      1000 
     )
     console.timeEnd('Answer Generation Time')
     console.log('Answer generated:', answer.text)
