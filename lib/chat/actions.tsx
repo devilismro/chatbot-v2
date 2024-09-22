@@ -131,7 +131,7 @@ async function submitUserMessage(content: string) {
     openAIApiKey: process.env.OPENAI_API_KEY,
     model: 'gpt-4o-mini-2024-07-18',
     temperature: 0,
-    timeout: 9000,
+    timeout: 5000,
   });
 
   let standaloneQuestion;
@@ -174,6 +174,7 @@ async function submitUserMessage(content: string) {
   }
 
   const serializedContext = formatDocumentsAsString(retrievedContext);
+  console.log('Serialized retrieved context:', serializedContext);
 
   let answer;
   console.time('Answer Generation Time');
