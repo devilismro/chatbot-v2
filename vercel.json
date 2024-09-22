@@ -1,7 +1,7 @@
 {
     "functions": {
-      "api/chat/*": {
-        "runtime": "nodejs18.x",
+      "api/**/*": {
+        "runtime": "@vercel/node@18.x", 
         "memory": 1024,
         "maxDuration": 60
       }
