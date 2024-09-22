@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from 'clsx'
 import { customAlphabet } from 'nanoid'
 import { twMerge } from 'tailwind-merge'
+import { NextApiRequest } from 'next'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -137,4 +138,23 @@ export function subMonths(date: Date, amount: number) {
   const newDate: Date = new Date(date)
   newDate.setMonth(newDate.getMonth() - amount)
   return newDate
+}
+
+
+export function getAbsoluteUrl(req?: NextApiRequest): string {
+  let host
+
+  if (req) {
+    host = req.headers['x-forwarded-host'] || req.headers.host
+  } else if (typeof window !== 'undefined') {
+    host = window.location.host
+  }
+
+  if (!host) {
+    host = 'localhost:3000' 
+  }
+
+  const protocol = host.includes('localhost') ? 'http' : 'https'
+
+  return `${protocol}://${host}`
 }
