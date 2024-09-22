@@ -71,8 +71,8 @@ export type UIState = {
 export const AI = createAI<AIState, UIState>({
   actions: {
     submitUserMessage: async (content: string) => {
-      'use server'
-      const aiState = getMutableAIState<typeof AI>()
+      'use server';
+      const aiState = getMutableAIState<typeof AI>();
       aiState.update({
         ...aiState.get(),
         messages: [
@@ -80,89 +80,92 @@ export const AI = createAI<AIState, UIState>({
           {
             id: nanoid(),
             role: 'user',
-            content
-          }
-        ]
-      })
+            content,
+          },
+        ],
+      });
 
       try {
         const url = `${getAbsoluteUrl()}/api/chat`;
         const response = await fetch(url, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             content,
-            aiState: aiState.get()
-          })
-        })
+            aiState: aiState.get(),
+          }),
+        });
 
-        const data = await response.json()
-
-        if (response.ok) {
-          aiState.update({
-            ...aiState.get(),
-            messages: [
-              ...aiState.get().messages,
-              {
-                id: nanoid(),
-                role: 'assistant',
-                content: data.answer
-              }
-            ]
-          })
-
-          return {
-            id: nanoid(),
-            display: <BotMessage content={data.answer} />
-          }
-        } else {
-          console.error('API Error:', data.message)
+        if (!response.ok) {
+          const errorText = await response.text(); 
+          console.error(`API Error: ${errorText}`);
           return {
             id: nanoid(),
             display: (
               <BotMessage content="Îmi pare rău, dar nu am putut genera un răspuns în acest moment!" />
-            )
-          }
+            ),
+          };
         }
+
+        const data = await response.json();
+
+        aiState.update({
+          ...aiState.get(),
+          messages: [
+            ...aiState.get().messages,
+            {
+              id: nanoid(),
+              role: 'assistant',
+              content: data.answer,
+            },
+          ],
+        });
+
+        return {
+          id: nanoid(),
+          display: <BotMessage content={data.answer} />,
+        };
       } catch (error: any) {
-        console.error('Fetch Error:', error)
+        console.error('Fetch Error:', error);
         return {
           id: nanoid(),
           display: (
             <BotMessage content="Îmi pare rău, dar nu am putut genera un răspuns în acest moment!" />
-          )
-        }
+          ),
+        };
       }
-    }
+    },
   },
   initialUIState: [],
   initialAIState: { chatId: nanoid(), messages: [] },
+
   onGetUIState: async () => {
-    'use server'
-    const session = await auth()
+    'use server';
+    const session = await auth();
     if (session && session.user) {
-      const aiState = getAIState() as AIState
+      const aiState = getAIState() as AIState;
       if (aiState) {
-        const uiState = getUIStateFromAIState(aiState)
-        return uiState
+        const uiState = getUIStateFromAIState(aiState);
+        return uiState;
       }
     } else {
-      return
+      return;
     }
   },
-  onSetAIState: async ({ state }) => {
-    'use server'
-    const session = await auth()
-    if (session && session.user) {
-      const { chatId, messages } = state
-      const createdAt = new Date()
-      const userId = session.user.id as string
-      const path = `/chat/${chatId}`
 
-      const firstMessageContent = messages[0].content as string
-      const title = firstMessageContent.substring(0, 100)
+  onSetAIState: async ({ state }) => {
+    'use server';
+    const session = await auth();
+    if (session && session.user) {
+      const { chatId, messages } = state;
+      const createdAt = new Date();
+      const userId = session.user.id as string;
+      const path = `/chat/${chatId}`;
+
+      const firstMessageContent = messages[0].content as string;
+      const title = firstMessageContent.substring(0, 100);
 
       const chat: Chat = {
         id: chatId,
@@ -170,31 +173,31 @@ export const AI = createAI<AIState, UIState>({
         userId,
         createdAt,
         messages,
-        path
-      }
+        path,
+      };
 
-      await saveChat(chat)
+      await saveChat(chat);
     } else {
-      return
+      return;
     }
-  }
-})
+  },
+});
 
 export const getUIStateFromAIState = (aiState: AIState) => {
   return aiState.messages
     .filter((message: ChatMessage) => message.role !== 'system')
     .map((message: ChatMessage, index: number) => {
-      const id = `${aiState.chatId}-${index}`
-      let display: React.ReactNode = null
+      const id = `${aiState.chatId}-${index}`;
+      let display: React.ReactNode = null;
 
       if (message.role === 'tool') {
-        display = <ToolMessageComponent content={message.content} />
+        display = <ToolMessageComponent content={message.content} />;
       } else if (message.role === 'user' || message.role === 'assistant') {
-        display = <BotMessage content={message.content} />
+        display = <BotMessage content={message.content} />;
       } else {
-        display = null
+        display = null;
       }
 
-      return { id, display }
-    })
-}
+      return { id, display };
+    });
+};
