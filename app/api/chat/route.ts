@@ -59,8 +59,8 @@ interface ChatMessage {
   content: string
 }
 
-export async function POST(req: Request, res: NextApiResponse) {
-  const { content, aiState } = await req.json()
+export async function POST(req: NextApiRequest, res: NextApiResponse) {
+    const { content, aiState } = await req.body;
 
   if (!content || !aiState) {
     return new Response(

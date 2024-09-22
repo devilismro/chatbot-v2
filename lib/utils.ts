@@ -141,19 +141,19 @@ export function subMonths(date: Date, amount: number) {
 }
 
 export function getAbsoluteUrl(req?: NextApiRequest): string {
-  let host
+  let host;
 
   if (req) {
-    host = req.headers['x-forwarded-host'] || req.headers.host
+    host = req.headers['x-forwarded-host'] || req.headers.host;
   } else if (typeof window !== 'undefined') {
-    host = window.location.host
+    host = window.location.host;
   }
 
   if (!host) {
-    host = process.env.VERCEL_URL || 'localhost:3000'
+    host = process.env.VERCEL_URL || 'localhost:3000'; 
   }
 
-  const protocol = host.includes('localhost') ? 'http' : 'https'
+  const protocol = host.includes('localhost') ? 'http' : 'https';
 
-  return `${protocol}://${host}`
+  return `${protocol}://${host}`;
 }
