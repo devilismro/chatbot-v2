@@ -140,7 +140,6 @@ export function subMonths(date: Date, amount: number) {
   return newDate
 }
 
-
 export function getAbsoluteUrl(req?: NextApiRequest): string {
   let host
 
@@ -151,7 +150,7 @@ export function getAbsoluteUrl(req?: NextApiRequest): string {
   }
 
   if (!host) {
-    host = 'localhost:3000' 
+    host = process.env.VERCEL_URL || 'localhost:3000'
   }
 
   const protocol = host.includes('localhost') ? 'http' : 'https'
