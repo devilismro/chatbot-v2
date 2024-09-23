@@ -87,11 +87,13 @@ export const AI = createAI<AIState, UIState>({
       })
 
       try {
-        const url = `${getAbsoluteUrl()}/api/chat` 
+        const url = `${getAbsoluteUrl()}/api/chat`
+        console.log('Making API call to:', url)
         const response = await fetch(url, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY || 'dummy-token'}`
           },
           body: JSON.stringify({
             content,
