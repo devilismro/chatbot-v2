@@ -92,11 +92,10 @@ export const AI = createAI<AIState, UIState>({
         const response = await fetch(url, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            content,
-            aiState: aiState.get()
+            content: 'test' 
           })
         })
 
@@ -114,32 +113,8 @@ export const AI = createAI<AIState, UIState>({
             )
           }
         }
-
-        const data = await response.json()
-        aiState.update({
-          ...aiState.get(),
-          messages: [
-            ...aiState.get().messages,
-            {
-              id: nanoid(),
-              role: 'assistant',
-              content: data.answer
-            }
-          ]
-        })
-
-        return {
-          id: nanoid(),
-          display: <BotMessage content={data.answer} />
-        }
       } catch (error: any) {
         console.error('Fetch Error:', error)
-        return {
-          id: nanoid(),
-          display: (
-            <BotMessage content="Îmi pare rău, dar nu am putut genera un răspuns în acest moment!" />
-          )
-        }
       }
     }
   },

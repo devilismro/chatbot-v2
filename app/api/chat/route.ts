@@ -2,19 +2,19 @@ import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
   try {
-    console.log('API KEY:', process.env.OPENAI_API_KEY)
+    console.log('Received a request at /api/chat')
+
     return NextResponse.json(
       {
-        message: 'API is working',
-        apiKey: process.env.OPENAI_API_KEY
+        message: 'Hello World',
       },
       {
         status: 200,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
-        }
+          'Access-Control-Allow-Headers': 'Content-Type',
+        },
       }
     )
   } catch (error: any) {
