@@ -87,15 +87,16 @@ export const AI = createAI<AIState, UIState>({
       })
 
       try {
-        const url = `${getAbsoluteUrl()}/api/chat`
+        const url = `/api/chat` // Relative URL to avoid calling external Vercel URL
         console.log('Making API call to:', url)
+
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            content: 'test' 
+            content: 'test' // Test content for a simple POST
           })
         })
 
