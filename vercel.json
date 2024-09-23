@@ -1,5 +1,4 @@
 {
-  "ssoProtection": null,
   "functions": {
     "api/chat": {
       "maxDuration": 60,
