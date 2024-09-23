@@ -68,17 +68,21 @@ async function withRetry<T>(
 ): Promise<T> {
   for (let i = 0; i < retries; i++) {
     try {
+      console.log(`Attempt ${i + 1} of ${retries}`)
       return await fn()
     } catch (error) {
+      console.error(`Error on attempt ${i + 1}:`, error)
       if (i === retries - 1) {
         throw error
       }
       const backoffDelay = delay * Math.pow(2, i)
+      console.log(`Waiting for ${backoffDelay}ms before retrying...`)
       await new Promise(resolve => setTimeout(resolve, backoffDelay))
     }
   }
   throw new Error('Failed to execute function after maximum retries')
 }
+
 
 const MAX_HISTORY_LENGTH = 10
 function truncateHistory(history: ChatMessage[]): ChatMessage[] {
@@ -129,10 +133,12 @@ async function submitUserMessage(content: string) {
 
   const chatModel = new ChatOpenAI({
     openAIApiKey: process.env.OPENAI_API_KEY,
-    model: 'gpt-4o-mini-2024-07-18',
+    model: 'gpt-3.5-turbo',
     temperature: 0,
-    timeout: 5000
+    timeout: 20000
   })
+
+  //    model: 'gpt-4o-mini-2024-07-18',
 
   let standaloneQuestion
   console.time('Standalone Question Generation Time')
