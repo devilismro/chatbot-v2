@@ -5,15 +5,14 @@ import { ChatOpenAI } from '@langchain/openai'
 import { ChatPromptTemplate } from '@langchain/core/prompts'
 import { formatDocumentsAsString } from 'langchain/util/document'
 import { Document } from '@langchain/core/documents'
+  
 
 const MAX_HISTORY_LENGTH = 20
 
-// Truncate chat history to the last 20 messages
 function truncateHistory(history: ChatMessage[]): ChatMessage[] {
   return history.slice(-MAX_HISTORY_LENGTH)
 }
 
-// Retry function with exponential backoff
 async function withRetry<T>(
   fn: () => Promise<T>,
   retries = 2,
@@ -33,7 +32,6 @@ async function withRetry<T>(
   throw new Error('Failed to execute function after maximum retries')
 }
 
-// Templates for the prompt to OpenAI
 const standaloneQuestionPrompt = ChatPromptTemplate.fromTemplate(`
 Rolul tău:
 Ești un expert cu peste 30 de ani de experiență practică în legislația muncii și dreptul muncii din România. Vei răspunde exclusiv în limba română, oferind informații clare, precise și detaliate.

@@ -6,7 +6,8 @@ import {
   createAI,
   createStreamableUI,
   getMutableAIState,
-  getAIState
+  getAIState, 
+  streamUI
 } from 'ai/rsc'
 
 import { spinner, BotMessage, SystemMessage } from '@/components/stocks'
