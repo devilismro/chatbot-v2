@@ -1,9 +1,11 @@
 {
-    "functions": {
-      "app/api/chat/route.ts": {
-        "maxDuration": 60,
-        "memory": 1024
-      }
+  "rewrites": [
+    { "source": "/api/chat", "destination": "/api/chat" }
+  ],
+  "functions": {
+    "app/api/chat/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
     }
   }
-  
+}
