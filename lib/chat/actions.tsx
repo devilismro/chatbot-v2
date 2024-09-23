@@ -133,7 +133,7 @@ async function submitUserMessage(content: string) {
 
   const chatModel = new ChatOpenAI({
     openAIApiKey: process.env.OPENAI_API_KEY,
-    model: 'gpt-3.5-turbo',
+    model: 'gpt-4o-mini-2024-07-18',
     temperature: 0,
     timeout: 20000
   })
