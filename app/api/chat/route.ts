@@ -126,8 +126,10 @@ async function submitUserMessage(content: string, aiState: any, apiKey: string) 
       2,
       1000
     )
+    console.log('Retrieved context from Supabase:', retrievedContext)
   } catch (error) {
     console.error('Error retrieving documents from Supabase:', error)
+    throw new Error('Could not retrieve documents from Supabase.')
   }
 
   const serializedContext = formatDocumentsAsString(retrievedContext)
