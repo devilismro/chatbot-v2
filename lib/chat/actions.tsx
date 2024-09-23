@@ -87,7 +87,7 @@ export const AI = createAI<AIState, UIState>({
       })
 
       try {
-        const url = `/api/chat`
+        const url = `${getAbsoluteUrl()}/api/chat` 
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -105,8 +105,7 @@ export const AI = createAI<AIState, UIState>({
         console.log('API Response Body:', responseBody)
 
         if (!response.ok) {
-          const errorText = await response.text()
-          console.error(`API Error: ${errorText}`)
+          console.error(`API Error: ${responseBody}`)
           return {
             id: nanoid(),
             display: (
@@ -115,8 +114,7 @@ export const AI = createAI<AIState, UIState>({
           }
         }
 
-        const data = JSON.parse(responseBody);  
-
+        const data = await response.json()
         aiState.update({
           ...aiState.get(),
           messages: [
