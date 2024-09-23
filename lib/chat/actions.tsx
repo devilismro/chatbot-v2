@@ -168,17 +168,19 @@ export const getUIStateFromAIState = (aiState: AIState) => {
   return aiState.messages
     .filter((message: ChatMessage) => message.role !== 'system')
     .map((message: ChatMessage, index: number) => {
-      const id = `${aiState.chatId}-${index}`
-      let display: React.ReactNode = null
+      const id = `${aiState.chatId}-${index}`; 
+      let display: React.ReactNode = null;  // Set default value to null
 
       if (message.role === 'tool') {
-        display = <ToolMessageComponent content={message.content} />
+        display = <ToolMessageComponent content={message.content} />;
       } else if (message.role === 'user' || message.role === 'assistant') {
-        display = <BotMessage content={message.content} />
+        display = <BotMessage content={message.content} />;
       } else {
-        display = null
+        console.error(`Unexpected message role: ${message.role}`);
+        display = null;  // Handle unexpected roles gracefully
       }
 
-      return { id, display }
-    })
-}
+      // Ensure that display is not undefined, and handle missing data gracefully
+      return { id, display: display || <div>Error: Missing content</div> };
+    });
+};
