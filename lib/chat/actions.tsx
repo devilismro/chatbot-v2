@@ -25,6 +25,14 @@ import { saveChat } from '@/app/actions'
 import { auth } from '@/auth'
 import { OpenAI } from 'openai'
 
+
+const memory = new BufferMemory({
+  memoryKey: "chatHistory", 
+  inputKey: "question", 
+  outputKey: "response", 
+  returnMessages: true, 
+});
+
 type MutableAIState = {
   get: () => AIState
   update: (newState: AIState) => void
