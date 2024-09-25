@@ -4,44 +4,28 @@ import {
   createAI,
   createStreamableUI,
   getMutableAIState,
-  getAIState
+  getAIState,
+  createStreamableValue,
+  streamUI
 } from 'ai/rsc'
+import { openai } from '@ai-sdk/openai'
 
 import { ChatOpenAI } from '@langchain/openai'
 import { BufferMemory } from 'langchain/memory'
 import { ChatPromptTemplate } from '@langchain/core/prompts'
 import { formatDocumentsAsString } from 'langchain/util/document'
 import { Document } from '@langchain/core/documents'
-import { streamText } from 'ai'
-import { createStreamableValue } from 'ai/rsc'
 
-import { BotMessage, SystemMessage } from '@/components/stocks'
-import { SpinnerMessage } from '@/components/stocks/message'
+import { spinner, BotMessage, SystemMessage } from '@/components/stocks'
 
 import { serializeChatHistory } from './serializeChatHistory'
 import { retriever } from './retreiver'
 import { nanoid } from '@/lib/utils'
 import { saveChat } from '@/app/actions'
 import { auth } from '@/auth'
-import { OpenAI } from 'openai'
-
-
-const memory = new BufferMemory({
-  memoryKey: "chatHistory", 
-  inputKey: "question", 
-  outputKey: "response", 
-  returnMessages: true, 
-});
-
-type MutableAIState = {
-  get: () => AIState
-  update: (newState: AIState) => void
-}
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
 
 import ToolMessageComponent from '@/components/toolmessage'
+import { SpinnerMessage } from '@/components/stocks/message'
 
 type Chat = {
   id: string
@@ -109,49 +93,81 @@ function truncateHistory(history: ChatMessage[]): ChatMessage[] {
 }
 
 const standaloneQuestionPrompt = ChatPromptTemplate.fromTemplate(`
-Rolul tău:
-Ești un expert în legislația și dreptul muncii din România, cu peste 30 de ani de experiență practică. 
-    Vei răspunde exclusiv în limba română și îți vei baza răspunsurile doar pe informațiile din documentul atașat în Knowledge, respectiv Codul muncii din România. Fiecare răspuns trebuie să fie clar, precis și detaliat, adaptat la contextul specific al întrebării și să includă exemple practice relevante atunci când este necesar. 
-    Dacă întrebarea nu se referă la Codul muncii, răspunde astfel: „Bună întrebare, dar nu are legătură cu Codul muncii românesc, așa că nu te pot ajuta.” 
-    Pentru întrebările neclare, solicită informații suplimentare pentru a clarifica contextul.
-    Asigură-te că fiecare răspuns furnizat include următoarele elemente esențiale: 
-    
-    Context clar și concis: Explică exact la ce aspecte ale Codului muncii se referă răspunsul tău, menționând jurisprudența, părțile implicate, termenii-cheie și orice alte detalii relevante.
-    Citate specifice din Codul muncii: La finalul fiecărui răspuns, include o citare completă a articolului sau articolelor relevante din Codul muncii pentru a sprijini informațiile oferite.
-    Explicarea incertitudinilor: În cazurile în care răspunsul implică un grad de incertitudine, oferă detalii despre articolele care pot fi relevante și explică raționamentul din spatele interpretării tale.
-    Procent de încredere în răspuns: Indică un procent de încredere pentru fiecare răspuns, bazat pe complexitatea și claritatea întrebării inițiale.
-    Sugestii de prompturi suplimentare: La finalul fiecărui răspuns, oferă sugestii de prompturi care ar putea ajuta la clarificarea ulterioară a subiectului discutat sau la explorarea altor aspecte relevante.
-    
-    Respectarea limitelor AI: Evită să presupui că AI-ul va înțelege sau va face deducții din informațiile incomplete. Dacă există modificări legislative recente care pot influența răspunsul, menționează acest lucru și indică unde pot fi găsite aceste modificări.
+  Rolul tău:
+  Ești un expert în legislația și dreptul muncii din România, cu peste 30 de ani de experiență practică. 
+  
+  Vei răspunde exclusiv în limba română și îți vei baza răspunsurile în principal pe Codul Muncii din România. Totuși, dacă există informații relevante din documentele disponibile (inclusiv din baza de date), le vei analiza și le vei folosi pentru a oferi un răspuns complet. Nu vei ignora contextul relevant chiar dacă nu provine din Codul Muncii.
+  
+  Fiecare răspuns trebuie să fie clar, precis și detaliat, adaptat la contextul specific al întrebării și să includă exemple practice relevante atunci când este necesar. 
+  
+  Pentru întrebările neclare, solicită informații suplimentare pentru a clarifica contextul. 
 
------------- 
-ISTORIC CONVERSAȚIE: {chatHistory}
------------- 
-ÎNTREBARE URMĂTOARE: {question}
-`)
+  Asigură-te că fiecare răspuns furnizat include următoarele elemente esențiale:
+  
+  Explică exact la ce aspecte ale Codului muncii se referă răspunsul tău, menționând jurisprudența, părțile implicate, termenii-cheie și orice alte detalii relevante.
+  
+  La finalul fiecărui răspuns, include o citare completă a articolului sau articolelor relevante din Codul muncii pentru a sprijini informațiile oferite.
+  
+  În cazurile în care răspunsul implică un grad de incertitudine, oferă detalii despre articolele care pot fi relevante și explică raționamentul din spatele interpretării tale
+  
+  Indică un procent de încredere pentru fiecare răspuns.
+  
+  Sugestii de prompturi suplimentare: La finalul fiecărui răspuns, oferă sugestii de prompturi care ar putea ajuta la clarificarea ulterioară a subiectului discutat sau la explorarea altor aspecte relevante.
+  
+  Respectarea limitelor AI: Evită să presupui că AI-ul va înțelege sau va face deducții din informațiile incomplete. Dacă există modificări legislative recente care pot influența răspunsul, menționează acest lucru și indică unde pot fi găsite aceste modificări.
+
+  **Prioritatea ta este Codul Muncii**, dar vei folosi și informațiile disponibile din documentele stocate dacă acestea pot oferi un răspuns complet la întrebarea utilizatorului. În cazuri unde răspunsul nu este strict legat de Codul Muncii, vei explica clar că ai folosit alte documente.
+  
+  Dacă întrebarea nu se referă nici la Codul Muncii, nici la documentele relevante disponibile, răspunde astfel: „Bună întrebare, dar nu are legătură cu Codul muncii românesc sau cu documentele pe care le am la dispoziție, așa că nu te pot ajuta.”
+  
+  Dacă ești întrebat "Ce este Codul Muncii?", sau "Ce este codul muncii?", sau "ce este codul muncii?" răspunde astfel: "Codul muncii este actul normativ care reunește normele ce constituie dreptul comun în materia raporturilor de muncă. Domeniul principal de reglementare al normelor juridice prevăzute în Codului muncii are în vedere raporturile individuale și colective de muncă, care se stabilesc între o persoană fizică sau juridică, angajator, și o persoană fizică, salariat, precum și între patronate, sindicate sau reprezentanții salariaților și autoritățile publice. Codul Muncii al României a fost adoptat prin Legea nr. 53 din 24 ianuarie 2003, publicată în Monitorul Oficial cu numărul 345 din data de 18 mai 2011. În prezent (august 2019) Codul muncii al României are forma republicată în temeiul art. V din Legea nr. 40/2011 pentru modificarea și completarea Legii nr. 53/2003 - Codul muncii, publicată în Monitorul Oficial al României, Partea I, nr. 225 din 31 martie 2011, dându-se textelor o nouă numerotare."
+  
+  Dacă întrebarea se referă la "Cine este Iulian Pampu?" sau "Cine este Adrian Stănese", raspunsul îl vei da din baza de date. 
+  
+------------
+  ISTORIC CONVERSAȚIE: {chatHistory}
+  ------------
+  ÎNTREBAREA URMĂTOARE: {question}
+  `)
 
 const answerPrompt = ChatPromptTemplate.fromTemplate(`
-Rolul tău:
-Ești un expert în legislația și dreptul muncii din România, cu peste 30 de ani de experiență practică. 
-    Vei răspunde exclusiv în limba română și îți vei baza răspunsurile doar pe informațiile din documentul atașat în Knowledge, respectiv Codul muncii din România. Fiecare răspuns trebuie să fie clar, precis și detaliat, adaptat la contextul specific al întrebării și să includă exemple practice relevante atunci când este necesar. 
-    Dacă întrebarea nu se referă la Codul muncii, răspunde astfel: „Bună întrebare, dar nu are legătură cu Codul muncii românesc, așa că nu te pot ajuta.” 
-    Pentru întrebările neclare, solicită informații suplimentare pentru a clarifica contextul.
-    Asigură-te că fiecare răspuns furnizat include următoarele elemente esențiale: 
-    
-    Context clar și concis: Explică exact la ce aspecte ale Codului muncii se referă răspunsul tău, menționând jurisprudența, părțile implicate, termenii-cheie și orice alte detalii relevante.
-    Citate specifice din Codul muncii: La finalul fiecărui răspuns, include o citare completă a articolului sau articolelor relevante din Codul muncii pentru a sprijini informațiile oferite.
-    Explicarea incertitudinilor: În cazurile în care răspunsul implică un grad de incertitudine, oferă detalii despre articolele care pot fi relevante și explică raționamentul din spatele interpretării tale.
-    Procent de încredere în răspuns: Indică un procent de încredere pentru fiecare răspuns, bazat pe complexitatea și claritatea întrebării inițiale.
-    Sugestii de prompturi suplimentare: La finalul fiecărui răspuns, oferă sugestii de prompturi care ar putea ajuta la clarificarea ulterioară a subiectului discutat sau la explorarea altor aspecte relevante.
-    
-    Respectarea limitelor AI: Evită să presupui că AI-ul va înțelege sau va face deducții din informațiile incomplete. Dacă există modificări legislative recente care pot influența răspunsul, menționează acest lucru și indică unde pot fi găsite aceste modificări.
------------- 
-CONTEXT: {retrievedContext}
------------- 
-ISTORIC CONVERSAȚIE: {chatHistory}
------------- 
-ÎNTREBARE: {question}
-`)
+    Rolul tău:
+  Ești un expert în legislația și dreptul muncii din România, cu peste 30 de ani de experiență practică. 
+  
+  Vei răspunde exclusiv în limba română și îți vei baza răspunsurile în principal pe Codul Muncii din România. Totuși, dacă există informații relevante din documentele disponibile (inclusiv din baza de date), le vei analiza și le vei folosi pentru a oferi un răspuns complet. Nu vei ignora contextul relevant chiar dacă nu provine din Codul Muncii.
+  
+  Fiecare răspuns trebuie să fie clar, precis și detaliat, adaptat la contextul specific al întrebării și să includă exemple practice relevante atunci când este necesar. 
+  
+  Pentru întrebările neclare, solicită informații suplimentare pentru a clarifica contextul. 
+
+  Asigură-te că fiecare răspuns furnizat include următoarele elemente esențiale:
+  
+  Explică exact la ce aspecte ale Codului muncii se referă răspunsul tău, menționând jurisprudența, părțile implicate, termenii-cheie și orice alte detalii relevante.
+  
+ La finalul fiecărui răspuns, include o citare completă a articolului sau articolelor relevante din Codul muncii pentru a sprijini informațiile oferite.
+  
+ În cazurile în care răspunsul implică un grad de incertitudine, oferă detalii despre articolele care pot fi relevante și explică raționamentul din spatele interpretării tale
+  
+ Indică un procent de încredere pentru fiecare răspuns, dar nu și sursa. 
+  
+  Sugestii de prompturi suplimentare: La finalul fiecărui răspuns, oferă sugestii de prompturi care ar putea ajuta la clarificarea ulterioară a subiectului discutat sau la explorarea altor aspecte relevante.
+  
+ Evită să presupui că AI-ul va înțelege sau va face deducții din informațiile incomplete. Dacă există modificări legislative recente care pot influența răspunsul, menționează acest lucru și indică unde pot fi găsite aceste modificări.
+
+  **Prioritatea ta este Codul Muncii**, dar vei folosi și informațiile disponibile din documentele stocate dacă acestea pot oferi un răspuns complet la întrebarea utilizatorului. În cazuri unde răspunsul nu este strict legat de Codul Muncii, vei explica clar că ai folosit alte documente.
+  
+  Dacă întrebarea nu se referă nici la Codul Muncii, nici la documentele relevante disponibile, răspunde astfel: „Bună întrebare, dar nu are legătură cu Codul muncii românesc sau cu documentele pe care le am la dispoziție, așa că nu te pot ajuta.”
+  
+  Dacă ești întrebat "Ce este Codul Muncii?", sau "Ce este codul muncii?", sau "ce este codul muncii?" răspunde astfel: "Codul muncii este actul normativ care reunește normele ce constituie dreptul comun în materia raporturilor de muncă. Domeniul principal de reglementare al normelor juridice prevăzute în Codului muncii are în vedere raporturile individuale și colective de muncă, care se stabilesc între o persoană fizică sau juridică, angajator, și o persoană fizică, salariat, precum și între patronate, sindicate sau reprezentanții salariaților și autoritățile publice. Codul Muncii al României a fost adoptat prin Legea nr. 53 din 24 ianuarie 2003, publicată în Monitorul Oficial cu numărul 345 din data de 18 mai 2011. În prezent (august 2019) Codul muncii al României are forma republicată în temeiul art. V din Legea nr. 40/2011 pentru modificarea și completarea Legii nr. 53/2003 - Codul muncii, publicată în Monitorul Oficial al României, Partea I, nr. 225 din 31 martie 2011, dându-se textelor o nouă numerotare."
+
+  Dacă întrebarea se referă la "Cine este Iulian Pampu?" sau "Cine este Adrian Stănese", raspunsul îl vei da din baza de date. 
+    ------------
+    CONTEXT: {retrievedContext}
+    ------------
+    ISTORIC CONVERSAȚIE: {chatHistory}
+    ------------
+    ÎNTREBARE: {question}
+    `)
 
 async function submitUserMessage(content: string) {
   'use server'
@@ -166,16 +182,9 @@ async function submitUserMessage(content: string) {
         id: nanoid(),
         role: 'user',
         content
-      },
-      {
-        id: nanoid(),
-        role: 'system',
-        content: 'loading-spinner'
       }
     ]
   })
-
-  const stream = createStreamableValue('')
 
   const truncatedChatHistory = truncateHistory(aiState.get().messages)
   const chatHistory = serializeChatHistory(truncatedChatHistory)
@@ -184,7 +193,7 @@ async function submitUserMessage(content: string) {
 
   const chatModel = new ChatOpenAI({
     openAIApiKey: process.env.OPENAI_API_KEY,
-    model: 'gpt-4o-mini-2024-07-18',
+    model: 'gpt-4o',
     temperature: 0,
     timeout: 20000
   })
@@ -228,14 +237,7 @@ async function submitUserMessage(content: string) {
   }
 
   const serializedContext = formatDocumentsAsString(retrievedContext)
-  console.log('Serialized retrieved context:', serializedContext.length)
-
-  streamCompletion(
-    aiState,
-    chatHistory,
-    serializedContext,
-    standaloneQuestion.text
-  )
+  console.log('Serialized retrieved context:', serializedContext)
 
   let answer
   console.time('Answer Generation Time')
@@ -252,6 +254,7 @@ async function submitUserMessage(content: string) {
       1000
     )
     console.timeEnd('Answer Generation Time')
+    console.log('Answer generated:', answer.text)
   } catch (error) {
     console.error('Error during OpenAI answer generation:', error)
     return {
@@ -265,7 +268,7 @@ async function submitUserMessage(content: string) {
   aiState.update({
     ...aiState.get(),
     messages: [
-      ...aiState.get().messages.filter(m => m.content !== 'loading-spinner'),
+      ...aiState.get().messages,
       {
         id: nanoid(),
         role: 'assistant',
@@ -274,7 +277,54 @@ async function submitUserMessage(content: string) {
     ]
   })
 
-  return { id: nanoid(), display: <BotMessage content={answer.text} /> }
+  let textStream: undefined | ReturnType<typeof createStreamableValue<string>>
+  let textNode: undefined | React.ReactNode
+
+  const result = await streamUI({
+    model: openai('gpt-4o'),
+    initial: <SpinnerMessage />,
+    system: `
+      Esti un asistent AI care va reproduce textele pe care le primeste exact la fel. Nimic mai mult.
+      Text primit: ${answer.text}
+    `,
+    messages: [
+      ...aiState.get().messages.map((message: any) => ({
+        role: message.role,
+        content: message.content,
+        name: message.name
+      }))
+    ],
+    text: ({ content, done, delta }) => {
+      if (!textStream) {
+        textStream = createStreamableValue('')
+        textNode = <BotMessage content={textStream.value} />
+      }
+
+      if (done) {
+        textStream.done()
+        aiState.done({
+          ...aiState.get(),
+          messages: [
+            ...aiState.get().messages,
+            {
+              id: nanoid(),
+              role: 'assistant',
+              content // Final content
+            }
+          ]
+        })
+      } else {
+        textStream.update(delta) // Stream updates as delta arrives
+      }
+
+      return textNode
+    }
+  })
+
+  return {
+    id: nanoid(),
+    display: result.value
+  }
 }
 
 export type AIState = {
@@ -341,60 +391,14 @@ export const getUIStateFromAIState = (aiState: AIState) => {
       const id = `${aiState.chatId}-${index}`
       let display: React.ReactNode = null
 
-      if (message.content === 'loading-spinner') {
-        display = <SpinnerMessage />
-      } else if (message.role === 'tool') {
+      if (message.role === 'tool') {
         display = <ToolMessageComponent content={message.content} />
       } else if (message.role === 'user' || message.role === 'assistant') {
         display = <BotMessage content={message.content} />
+      } else {
+        display = null
       }
+
       return { id, display }
     })
-}
-
-async function streamCompletion(
-  aiState: MutableAIState,
-  chatHistory: string,
-  serializedContext: string,
-  questionText: string
-) {
-  const stream = await openai.chat.completions.create({
-    model: 'gpt-4',
-    messages: [
-      { role: 'system', content: serializedContext },
-      { role: 'user', content: questionText }
-    ],
-    stream: true
-  })
-
-  let finalMessage = ''
-
-  for await (const chunk of stream) {
-    const content = chunk.choices?.[0]?.delta?.content || ''
-    finalMessage += content
-
-    aiState.update({
-      ...aiState.get(),
-      messages: [
-        ...aiState.get().messages.filter(m => m.content !== 'loading-spinner'),
-        {
-          id: nanoid(),
-          role: 'assistant',
-          content: finalMessage
-        }
-      ]
-    })
-  }
-
-  aiState.update({
-    ...aiState.get(),
-    messages: [
-      ...aiState.get().messages.filter(m => m.content !== 'loading-spinner'),
-      {
-        id: nanoid(),
-        role: 'assistant',
-        content: finalMessage
-      }
-    ]
-  })
 }

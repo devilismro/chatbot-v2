@@ -19,6 +19,7 @@ export interface ChatPanelProps {
   setInput: (value: string) => void
   isAtBottom: boolean
   scrollToBottom: () => void
+  //onSubmit: (value: string) => Promise<void>
 }
 
 export function ChatPanel({
@@ -42,7 +43,8 @@ export function ChatPanel({
     },
     {
       heading: 'Care sunt drepturile angajaților?',
-      subheading: 'Drepturile și obligațiile angajaților conform Codului Muncii',
+      subheading:
+        'Drepturile și obligațiile angajaților conform Codului Muncii',
       message: 'Care sunt drepturile angajaților conform Codului Muncii?'
     },
     {
