@@ -154,7 +154,7 @@ async function submitUserMessage(content: string) {
 
   const chatModel = new ChatOpenAI({
     openAIApiKey: process.env.OPENAI_API_KEY,
-    model: 'gpt-4o',
+    model: 'gpt-4o-mini-2024-07-18',
     temperature: 0,
     timeout: 20000
   })
@@ -242,7 +242,7 @@ async function submitUserMessage(content: string) {
   let textNode: undefined | React.ReactNode
 
   const result = await streamUI({
-    model: openai('gpt-4o'),
+    model: openai('gpt-4o-mini-2024-07-18'),
     initial: <SpinnerMessage />,
     system: `
       Esti un asistent AI care va reproduce textele pe care le primeste exact la fel. Nimic mai mult.
