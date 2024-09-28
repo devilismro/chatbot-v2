@@ -26,6 +26,8 @@ import { auth } from '@/auth'
 
 import ToolMessageComponent from '@/components/toolmessage'
 import { SpinnerMessage } from '@/components/stocks/message'
+import langdetect from 'langdetect'
+import { franc } from 'franc'
 
 type Chat = {
   id: string
@@ -92,52 +94,118 @@ function truncateHistory(history: ChatMessage[]): ChatMessage[] {
   return history.slice(-MAX_HISTORY_LENGTH)
 }
 
-const standaloneQuestionPrompt = ChatPromptTemplate.fromTemplate(`
+const romanianStandalonePrompt = ChatPromptTemplate.fromTemplate(`
   Rolul tău:
-  Ești un expert cu peste 30 de ani de experiență practică în legislația muncii și dreptul muncii din România. Vei răspunde exclusiv în limba română, oferind informații clare, precise și detaliate.
-  
-  Nu vei răspunde la întrebări din afara Codului Muncii. Dacă sunt întrebări din afara acestui domeniu, vei răspunde standard : "Îmi pare rău, dar nu pot răspunde la alte întrebări din afara domeniului legislației muncii. Adresează-mi o întrebare cu privire la Codul Muncii. Mulțumesc!" 
+  Ești un expert cu peste 30 de ani de experiență practică în legislația muncii și dreptul muncii din România. Vei răspunde oferind informații clare, precise și detaliate.
 
-  Explică exact la ce aspecte ale Codului muncii se referă răspunsul tău, menționând jurisprudența, părțile implicate, termenii-cheie și orice alte detalii relevante.
-  
-  La finalul fiecărui răspuns, include o citare completă a articolului sau articolelor relevante din Codul muncii pentru a sprijini informațiile oferite.
-    
+  Răspunde în limba română folosind **doar** informații din Codul Muncii din România.
+
+  Explică exact la ce aspecte ale Codului Muncii se referă răspunsul tău, menționând jurisprudența, părțile implicate, termenii-cheie și orice alte detalii relevante.
+
+  La finalul fiecărui răspuns, include o citare completă a articolului sau articolelor relevante din Codul Muncii pentru a sprijini informațiile oferite.
+
   Indică un procent de încredere pentru fiecare răspuns.
-  
-  La finalul fiecărui răspuns, oferă sugestii de prompturi care ar putea ajuta la clarificarea ulterioară a subiectului discutat sau la explorarea altor aspecte relevante.
+
+  Oferă sugestii de prompturi pentru clarificări ulterioare sau explorarea altor aspecte relevante.
 
   ------------
   ISTORIC CONVERSAȚIE: {chatHistory}
   ------------
   ÎNTREBAREA URMĂTOARE: {question}
-  `)
+`)
 
-const answerPrompt = ChatPromptTemplate.fromTemplate(`
-    Rolul tău:
-    Ești un expert cu peste 30 de ani de experiență practică în legislația muncii și dreptul muncii din România. Vei răspunde exclusiv în limba română, oferind informații clare, precise și detaliate.
+const bulgarianStandalonePrompt = ChatPromptTemplate.fromTemplate(`
+  Вашата роля:
+  Вие сте експерт с над 30 години практически опит в трудовото законодателство и трудовото право на България. Ще отговаряте, предоставяйки ясна, точна и подробна информация.
 
-    Nu vei răspunde la întrebări din afara Codului Muncii. Dacă sunt întrebări din afara acestui domeniu, vei răspunde standard : "Îmi pare rău, dar nu pot răspunde la alte întrebări din afara domeniului legislației muncii. Adresează-mi o întrebare cu privire la Codul Muncii. Mulțumesc!" 
+  Отговорете на български език, използвайки **само** информация от Кодекса на труда на България.
+
+  Обяснете точно кои аспекти на Кодекса на труда се отнасят до вашия отговор, споменавайки съдебна практика, участващи страни, ключови термини и други релевантни детайли.
+
+  В края на всеки отговор включете пълно цитиране на съответния член или членове от Кодекса на труда, за да подкрепите предоставената информация.
+
+  Посочете процент на увереност за всеки отговор.
+
+  Предложете подканващи въпроси за по-нататъшно изясняване на обсъжданата тема или за изследване на други релевантни аспекти.
+
+  ------------
+  ИСТОРИЯ НА ЧАТА: {chatHistory}
+  ------------
+  ВЪПРОС: {question}
+`)
+
+const romanianAnswerPrompt = ChatPromptTemplate.fromTemplate(`
+      Rolul tău:
+      Ești un expert cu peste 30 de ani de experiență practică în legislația muncii și dreptul muncii din România. Vei răspunde oferind informații clare, precise și detaliate.
     
-    Explică exact la ce aspecte ale Codului muncii se referă răspunsul tău, menționând jurisprudența, părțile implicate, termenii-cheie și orice alte detalii relevante.
-  
-    La finalul fiecărui răspuns, include o citare completă a articolului sau articolelor relevante din Codul muncii pentru a sprijini informațiile oferite.
+      Răspunde în limba română folosind **doar** informații din Codul Muncii din România.
     
-    Indică un procent de încredere pentru fiecare răspuns.
-  
-    La finalul fiecărui răspuns, oferă sugestii de prompturi care ar putea ajuta la clarificarea ulterioară a subiectului discutat sau la explorarea altor aspecte relevante.
+      Explică exact la ce aspecte ale Codului Muncii se referă răspunsul tău, menționând jurisprudența, părțile implicate, termenii-cheie și orice alte detalii relevante.
+    
+      La finalul fiecărui răspuns, include o citare completă a articolului sau articolelor relevante din Codul Muncii pentru a sprijini informațiile oferite.
+    
+      Indică un procent de încredere pentru fiecare răspuns.
+    
+      Oferă sugestii de prompturi pentru clarificări ulterioare sau explorarea altor aspecte relevante.
+    
+      ------------
+      CONTEXT: {retrievedContext}
+      ------------
+      ISTORIC CONVERSAȚIE: {chatHistory}
+      ------------
+      ÎNTREBARE: {question}
+    `)
 
-    ------------
-    CONTEXT: {retrievedContext}
-    ------------
-    ISTORIC CONVERSAȚIE: {chatHistory}
-    ------------
-    ÎNTREBARE: {question}
+const bulgarianAnswerPrompt = ChatPromptTemplate.fromTemplate(`
+      Вашата роля:
+      Вие сте експерт с над 30 години практически опит в трудовото законодателство и трудовото право на България. Ще отговаряте, предоставяйки ясна, точна и подробна информация.
+    
+      Отговорете на български език, използвайки **само** информация от Кодекса на труда на България.
+    
+      Обяснете точно кои аспекти на Кодекса на труда се отнасят до вашия отговор, споменавайки съдебна практика, участващи страни, ключови термини и други релевантни детайли.
+    
+      В края на всеки отговор включете пълно цитиране на съответния член или членове от Кодекса на труда, за да подкрепите предоставената информация.
+    
+      Посочете процент на увереност за всеки отговор.
+    
+      Предложете подканващи въпроси за по-нататъшно изясняване на обсъжданата тема или за изследване на други релевантни аспекти.
+    
+      ------------
+      CONTEXT: {retrievedContext}
+      ------------
+      ИСТОРИЯ НА ЧАТА: {chatHistory}
+      ------------
+      ВЪПРОС: {question}
     `)
 
 async function submitUserMessage(content: string) {
   'use server'
 
   const aiState = getMutableAIState<typeof AI>()
+
+  const question = content
+  const detectedLang = franc(question, { minLength: 3 })
+
+  let answerPrompt
+  let standaloneQuestionPrompt
+
+  if (detectedLang === 'ron') {
+    console.log('Romanian detected')
+    answerPrompt = romanianAnswerPrompt
+    standaloneQuestionPrompt = romanianStandalonePrompt
+  } else if (detectedLang === 'bul') {
+    console.log('Bulgarian detected')
+    answerPrompt = bulgarianAnswerPrompt
+    standaloneQuestionPrompt = bulgarianStandalonePrompt
+  } else {
+    console.log('Language not supported or detected.')
+    return {
+      id: nanoid(),
+      display: (
+        <BotMessage content="Îmi pare rău, dar nu pot răspunde la întrebarea ta în acest moment!" />
+      )
+    }
+  }
 
   aiState.update({
     ...aiState.get(),
@@ -166,7 +234,7 @@ async function submitUserMessage(content: string) {
   let standaloneQuestion
   console.time('Standalone Question Generation Time')
   try {
-    const questionChain = standaloneQuestionPrompt.pipe(chatModel)
+    const questionChain = standaloneQuestionPrompt.pipe(chatModel) // Use the selected standalone prompt
     standaloneQuestion = await withRetry(
       () =>
         questionChain.invoke({
@@ -207,7 +275,7 @@ async function submitUserMessage(content: string) {
   let answer
   console.time('Answer Generation Time')
   try {
-    const answerChain = answerPrompt.pipe(chatModel)
+    const answerChain = answerPrompt.pipe(chatModel) // Use the dynamically selected answer prompt
     answer = await withRetry(
       () =>
         answerChain.invoke({
@@ -249,9 +317,9 @@ async function submitUserMessage(content: string) {
     model: openai('gpt-4o-mini-2024-07-18'),
     initial: <SpinnerMessage />,
     system: `
-      Esti un asistent AI care va reproduce textele pe care le primeste exact la fel. Nimic mai mult.
-      Text primit: ${answer.text}
-    `,
+              Esti un asistent AI care va reproduce textele pe care le primeste exact la fel. Nimic mai mult.
+              Text primit: ${answer.text}
+            `,
     messages: [
       ...aiState.get().messages.map((message: any) => ({
         role: message.role,
@@ -274,12 +342,12 @@ async function submitUserMessage(content: string) {
             {
               id: nanoid(),
               role: 'assistant',
-              content // Final content
+              content
             }
           ]
         })
       } else {
-        textStream.update(delta) // Stream updates as delta arrives
+        textStream.update(delta)
       }
 
       return textNode
